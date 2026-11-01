@@ -1,0 +1,6 @@
+{
+  "summary": "Rencana penyempurnaan fitur berbagi struk transaksi ke WhatsApp untuk lingkungan PWA dan TWA Android (Chrome & Play Store) menggunakan Web Share API berbasis FileProvider sistem dan skema Android Intent langsung pada Modal Struk serta Modal Bagikan Struk tanpa akses clipboard.",
+  "updatedAt": "2026-11-03T10:23:15.434328425Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

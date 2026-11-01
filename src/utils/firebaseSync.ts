@@ -1243,7 +1243,9 @@ export class FirebaseSyncService {
   // 6.1 SINKRONISASI ANTREAN OUTBOX SAAT ONLINE KEMBALI (BACKGROUND SYNC)
   private static isSyncingOutbox = false;
 
-  static async syncPendingOutbox(): Promise<{ synced: number; remaining: number }> {
+  static async syncPendingOutbox(
+    onProgress?: (synced: number, total: number) => void
+  ): Promise<{ synced: number; remaining: number }> {
     if (this.isSyncingOutbox) return { synced: 0, remaining: 0 };
     if (typeof navigator !== 'undefined' && !navigator.onLine) return { synced: 0, remaining: 0 };
     if (!auth.currentUser) return { synced: 0, remaining: 0 };
@@ -1253,12 +1255,13 @@ export class FirebaseSyncService {
 
     try {
       const pendingList = await IndexedDbService.getOutbox();
-      if (pendingList.length === 0) {
+      const total = pendingList.length;
+      if (total === 0) {
         this.isSyncingOutbox = false;
         return { synced: 0, remaining: 0 };
       }
 
-      console.log(`⚡ Background Sync: Menemukan ${pendingList.length} nota tertunda, memulai sinkronisasi ke Firestore...`);
+      console.log(`⚡ Background Sync: Menemukan ${total} nota tertunda, memulai sinkronisasi ke Firestore...`);
 
       for (const trx of pendingList) {
         try {
@@ -1269,6 +1272,9 @@ export class FirebaseSyncService {
           await setDoc(doc(db, 'laundries', trx.laundryId, 'transaksi', trx.id), payload);
           await IndexedDbService.removeFromOutbox(trx.id);
           synced++;
+          if (onProgress) {
+            onProgress(synced, total);
+          }
         } catch (err: any) {
           console.warn(`Gagal sinkronkan nota ${trx.id} saat background sync:`, err);
           if (err?.code === 'permission-denied') {

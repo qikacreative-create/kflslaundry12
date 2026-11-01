@@ -513,7 +513,7 @@ export const BukuKasView: React.FC<BukuKasViewProps> = ({
      
 
         {/* KARTU RINGKASAN KASIR (TUTUP KASIR FISIK) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-2 space-y-2">
+        <div className="bg-white    shadow-sm p-2 space-y-2">
           {/* Baris 1: Kas Masuk, Keluar, dan Selisih Kas */}
           <div className="grid grid-cols-3 gap-2 text-center">
             {/* Kas Masuk */}
