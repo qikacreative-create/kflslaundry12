@@ -1,8 +1,14 @@
 import { Transaksi, SettingsData } from '../types';
 import { formatDateIndo, formatReceiptDate } from './formatters';
 import { generateFormattedReceiptText, generateEscPosReceiptBytes } from './receiptFormatter';
-
 import { getLogoBase64, convertBase64ToEscPosRaster } from './logoHelper';
+import { DEFAULT_KAFELA_LOGO_BASE64 } from './defaultLogo';
+import {
+  cetakViaWebBluetooth,
+  pairBluetoothPrinterDirectly as pairPrinterDirectly,
+  KNOWN_PRINTER_SERVICES as KNOWN_SERVICES,
+  KNOWN_PRINTER_CHARACTERISTICS as KNOWN_CHARACTERISTICS,
+} from './printer';
 
 declare global {
   interface Window {
@@ -29,52 +35,80 @@ declare global {
       cetakEscPosBase64?: (base64EscPos: string) => void;
 
       /**
-       * Metode Kompatibilitas Mundur (22 Parameter)
+       * Metode Khusus Kasir Laundry (22 Parameter Istilah Laundry Asli)
        */
-      prosesCetakBluetooth?: (
-        namaAcara: string,
-        namaKlien: string,
-        paketDipilih: string,
-        hargaPaketDasar: number,
-        namaTambahan: string,
-        hargaTambahan: number,
-        lokasi: string,
-        tanggalBayar: string,
-        waktuEvent: number,
+      prosesCetakLaundry?: (
+        rincianCucian: string,
+        namaPelanggan: string,
+        layananUtama: string,
+        hargaLayananUtama: number,
+        layananTambahan: string,
+        hargaLayananTambahan: number,
+        lokasiOutlet: string,
+        tanggalTransaksi: string,
+        estimasiSelesai: number,
         totalTarif: number,
         nominalDibayar: number,
         nominalDiskon: number,
         dpDibayar: number,
         isLunas: boolean,
-        noStruk: string,
-        catatan: string,
+        noNota: string,
+        catatanTambahan: string,
         metodeBayar: string,
-        isArsip: boolean,
-        namaBrand: string,
-        namaAdmin: string,
+        isSelesaiDiambil: boolean,
+        namaLaundry: string,
+        namaKasir: string,
         logoBase64: string,
         ttdBase64: string
       ) => void;
 
-      cetakStrukDariWeb?: (
-        namaAcara: string,
-        namaKlien: string,
-        paketDipilih: string,
-        hargaPaketDasar: number,
-        namaTambahan: string,
-        hargaTambahan: number,
-        lokasi: string,
-        tanggalBayar: string,
-        waktuEvent: number,
+      /**
+       * Metode Kompatibilitas Mundur (dengan alias istilah laundry)
+       */
+      prosesCetakBluetooth?: (
+        rincianCucian: string,
+        namaPelanggan: string,
+        layananUtama: string,
+        hargaLayananUtama: number,
+        layananTambahan: string,
+        hargaLayananTambahan: number,
+        lokasiOutlet: string,
+        tanggalTransaksi: string,
+        estimasiSelesai: number,
         totalTarif: number,
         nominalDibayar: number,
         nominalDiskon: number,
         dpDibayar: number,
         isLunas: boolean,
-        noStruk: string,
-        catatan: string,
+        noNota: string,
+        catatanTambahan: string,
         metodeBayar: string,
-        isArsip: boolean
+        isSelesaiDiambil: boolean,
+        namaLaundry?: string,
+        namaKasir?: string,
+        logoBase64?: string,
+        ttdBase64?: string
+      ) => void;
+
+      cetakStrukDariWeb?: (
+        rincianCucian: string,
+        namaPelanggan: string,
+        layananUtama: string,
+        hargaLayananUtama: number,
+        layananTambahan: string,
+        hargaLayananTambahan: number,
+        lokasiOutlet: string,
+        tanggalTransaksi: string,
+        estimasiSelesai: number,
+        totalTarif: number,
+        nominalDibayar: number,
+        nominalDiskon: number,
+        dpDibayar: number,
+        isLunas: boolean,
+        noNota: string,
+        catatanTambahan: string,
+        metodeBayar: string,
+        isSelesaiDiambil: boolean
       ) => void;
 
       keluarAplikasi?: () => void;
@@ -133,8 +167,11 @@ export async function printViaAndroidBluetooth(
     try {
       // Dapatkan Base64 logo toko secara instan (100% siap tanpa delay)
       let logoBase64 = '';
-      if (settings.useLogo && settings.logoPath) {
-        logoBase64 = preloadedLogoBase64 !== undefined ? preloadedLogoBase64 : await getLogoBase64(settings);
+      if (settings.useLogo !== false) {
+        logoBase64 =
+          preloadedLogoBase64 !== undefined && preloadedLogoBase64 !== ''
+            ? preloadedLogoBase64
+            : (await getLogoBase64(settings)) || DEFAULT_KAFELA_LOGO_BASE64;
       }
 
       // 1. Generate teks lengkap 32 karakter yang susunan posisinya 100% sama dengan preview
@@ -146,15 +183,43 @@ export async function printViaAndroidBluetooth(
         laundryPhone
       );
 
-      // 1. Prioritaskan cetakTeksStruk (Metode 1 Rekomendasi Utama di WebPrintInterface Kotlin)
+      // 1. Prioritas Utama: Jika APK mendukung pengiriman biner ESC/POS langsung (100% plek ketiplek bit-by-bit dengan Web)
+      if (typeof window.MesinPrint.cetakEscPosBase64 === 'function') {
+        try {
+          let logoRaster: Uint8Array | null = null;
+          if (logoBase64) {
+logoRaster = await convertBase64ToEscPosRaster(logoBase64, 240);
+          }
+          const escPosBytes = generateEscPosReceiptBytes(
+            transaksi,
+            settings,
+            laundryName,
+            laundryAddress,
+            laundryPhone,
+            logoRaster
+          );
+          let binary = '';
+          for (let i = 0; i < escPosBytes.length; i++) {
+            binary += String.fromCharCode(escPosBytes[i]);
+          }
+          const base64EscPos = btoa(binary);
+          window.MesinPrint.cetakEscPosBase64(base64EscPos);
+          return { success: true, message: 'Struk biner ESC/POS berhasil dicetak lewat Bluetooth APK!' };
+        } catch (rawErr) {
+          console.warn('[NativeBridge] cetakEscPosBase64 gagal, beralih ke cetakTeksStruk:', rawErr);
+        }
+      }
+
+      // 2. Prioritas Kedua: cetakTeksStruk (Metode Teks Terformat di WebPrintInterface Kotlin)
       if (typeof window.MesinPrint.cetakTeksStruk === 'function') {
         try {
-          window.MesinPrint.cetakTeksStruk(fullReceiptText);
-        } catch {
           window.MesinPrint.cetakTeksStruk(fullReceiptText, logoBase64);
+        } catch {
+          window.MesinPrint.cetakTeksStruk(fullReceiptText);
         }
         return { success: true, message: 'Struk berhasil dicetak lewat socket Bluetooth APK!' };
       }
+
 
       // 2. Jika APK mendukung interface print(...) langsung
       if (typeof window.MesinPrint.print === 'function') {
@@ -166,13 +231,14 @@ export async function printViaAndroidBluetooth(
         return { success: true, message: 'Struk berhasil dikirim ke printer Bluetooth APK!' };
       }
 
-      // 3. Jika APK menggunakan prosesCetakBluetooth (metode 22 parameter)
-      if (typeof window.MesinPrint.prosesCetakBluetooth === 'function') {
+      // 3. Jika APK menggunakan prosesCetakLaundry atau prosesCetakBluetooth (metode 22 parameter)
+      const cetak22Method = window.MesinPrint.prosesCetakLaundry || window.MesinPrint.prosesCetakBluetooth;
+      if (typeof cetak22Method === 'function') {
         const isLunas = transaksi.statusPembayaran === 'Lunas';
         const items = Array.isArray(transaksi.items) ? transaksi.items : [];
 
-        // Susun ringkasan item yang rapi per baris sesuai preview
-        const itemsDesc =
+        // Susun rincian cucian laundry per baris sesuai nota
+        const rincianCucian =
           items.length > 0
             ? items
                 .map((it) => `${it.namaLayanan}\n  ${it.berat} ${it.satuan} x ${it.hargaPerKg} = Rp ${it.subtotal}`)
@@ -180,23 +246,23 @@ export async function printViaAndroidBluetooth(
             : 'Cucian Laundry';
 
         const firstItem = items[0];
-        const firstItemPrice = firstItem?.subtotal || transaksi.totalHarga;
+        const hargaLayananUtama = firstItem?.subtotal || transaksi.totalHarga;
         const restItems = items.slice(1);
-        const restDesc = restItems
+        const layananTambahan = restItems
           .map((it) => `${it.namaLayanan} (${it.berat} ${it.satuan})`)
           .join(', ');
-        const restPrice = restItems.reduce((acc, it) => acc + (it.subtotal || 0), 0);
+        const hargaLayananTambahan = restItems.reduce((acc, it) => acc + (it.subtotal || 0), 0);
 
-        const brand = laundryName || settings.headerStruk || "Kafela's Laundry";
+        const namaLaundry = laundryName || settings.headerStruk || "Kafela's Laundry";
         const address = laundryAddress || settings.address || '';
         const phone = laundryPhone || settings.phoneNumber || '';
-        const lokasi = [address, phone ? `Telp: ${phone}` : ''].filter(Boolean).join(' - ') || 'Outlet Laundry';
-        const tanggalBayarStr = formatReceiptDate(transaksi.tanggalMasuk, true);
-        const waktuEvent = transaksi.tanggalSelesai || transaksi.tanggalMasuk;
+        const lokasiOutlet = [address, phone ? `Telp: ${phone}` : ''].filter(Boolean).join(' - ') || 'Outlet Laundry';
+        const tanggalTransaksiStr = formatReceiptDate(transaksi.tanggalMasuk, true);
+        const estimasiSelesaiCuci = transaksi.tanggalSelesai || transaksi.tanggalMasuk;
         const nominalDibayar = isLunas ? transaksi.totalHarga : transaksi.jumlahDp || 0;
         const dpDibayar = transaksi.jumlahDp || 0;
 
-        // Susun Catatan, Footer Struk (Syarat & Ketentuan), dan Chatty Footer
+        // Susun Catatan, Syarat Ketentuan Laundry, dan Chatty Footer
         const footerLines: string[] = [];
         if (transaksi.catatan && transaksi.catatan.trim()) {
           footerLines.push(`Catatan: ${transaksi.catatan.trim()}`);
@@ -207,33 +273,33 @@ export async function printViaAndroidBluetooth(
         if (settings.chattyFooter && settings.chattyFooter.trim()) {
           footerLines.push(settings.chattyFooter.trim());
         }
-        const combinedCatatanAndFooter = footerLines.join('\n');
+        const catatanTambahan = footerLines.join('\n');
 
-        window.MesinPrint.prosesCetakBluetooth(
-          itemsDesc,
+        cetak22Method(
+          rincianCucian,
           transaksi.namaPelanggan || 'Pelanggan',
           firstItem?.namaLayanan || 'Laundry',
-          firstItemPrice,
-          restDesc,
-          restPrice,
-          lokasi,
-          tanggalBayarStr,
-          waktuEvent,
+          hargaLayananUtama,
+          layananTambahan,
+          hargaLayananTambahan,
+          lokasiOutlet,
+          tanggalTransaksiStr,
+          estimasiSelesaiCuci,
           transaksi.totalHarga,
           nominalDibayar,
           0,
           dpDibayar,
           isLunas,
           transaksi.nomorTransaksi || '-',
-          combinedCatatanAndFooter,
+          catatanTambahan,
           transaksi.metodePembayaran || 'Tunai',
           transaksi.status === 'Diambil',
-          brand,
+          namaLaundry,
           transaksi.dikerjakanOleh || 'Kasir',
           logoBase64,
           ''
         );
-        return { success: true, message: 'Struk berhasil dikirim ke printer Bluetooth via prosesCetakBluetooth!' };
+        return { success: true, message: 'Struk berhasil dikirim ke printer Bluetooth APK via metode parameter laundry!' };
       }
 
 
@@ -376,6 +442,7 @@ async function findWriteCharacteristic(device: any): Promise<any> {
 
 /**
  * Formatter Format ESC/POS (Maksimal 32 Karakter per Baris)
+ * 100% PERSIS susunannya dengan Android APK (StrukHelper.kt) dan Preview Struk
  */
 export function buildEscPosReceipt(
   transaksi: Transaksi,
@@ -384,137 +451,28 @@ export function buildEscPosReceipt(
   laundryAddress?: string,
   laundryPhone?: string
 ): string {
-  const line = '--------------------------------\n';
-  const doubleLine = '================================\n';
-
-  const namaBrand = laundryName || settings.headerStruk || "Kafelas Laundry";
-  const noInvoice = transaksi.nomorTransaksi || 'INV-001';
-  const namaAdmin = transaksi.dikerjakanOleh || 'Kasir';
-  const namaKlien = transaksi.namaPelanggan || 'Pelanggan';
-  const isLunas = transaksi.statusPembayaran === 'Lunas';
-  const diskon = transaksi.diskon || 0;
-  const totalTarif = transaksi.totalHarga;
-  const dpDibayar = transaksi.jumlahDp || 0;
-  const sisa = isLunas ? 0 : Math.max(0, totalTarif - dpDibayar);
-  const nominalDibayar = isLunas ? totalTarif : dpDibayar;
-
-  const items = Array.isArray(transaksi.items) && transaksi.items.length > 0 ? transaksi.items : [];
-  let itemsSection = '';
-  if (items.length > 0) {
-    itemsSection = items
-      .map((it) => {
-        const itemLine = `${(it.namaLayanan || 'Layanan').slice(0, 32)}\n`;
-        const subLine = `  ${it.berat || 0} ${it.satuan || ''} x ${it.hargaPerKg || it.hargaSatuan || 0} = Rp ${(it.subtotal || 0).toLocaleString('id-ID')}\n`;
-        return itemLine + subLine;
-      })
-      .join('');
-  } else {
-    itemsSection = `Layanan : Cucian Laundry\nTotal   : Rp ${totalTarif.toLocaleString('id-ID')}\n`;
-  }
-
-  return [
-    '\x1B\x40',         // 1. Reset/Init printer
-    '\x1B\x61\x01',     // 2. Rata Tengah (Center)
-    '\x1B\x21\x10',     // 3. Teks Besar (Double Height)
-    `${namaBrand.toUpperCase()}\n`,
-    '\x1B\x21\x00',     // 4. Kembali Teks Normal
-    'Struk Pembayaran Resmi\n',
-    doubleLine,
-    isLunas ? 'BUKTI PELUNASAN\n' : 'BUKTI PEMBAYARAN (DP)\n',
-    line,
-    '\x1B\x61\x00',     // 5. Rata Kiri
-    `No.Inv  : #${noInvoice}\n`,
-    `Kasir   : ${namaAdmin}\n`,
-    `Klien   : ${namaKlien}\n`,
-    line,
-    itemsSection,
-    diskon > 0 ? `Diskon  : -Rp ${diskon.toLocaleString('id-ID')}\n` : '',
-    line,
-    `Total   : Rp ${totalTarif.toLocaleString('id-ID')}\n`,
-    `Dibayar : Rp ${nominalDibayar.toLocaleString('id-ID')}\n`,
-    !isLunas ? `Sisa    : Rp ${sisa.toLocaleString('id-ID')}\n` : '',
-    doubleLine,
-    '\x1B\x61\x01',     // Rata Tengah
-    `STATUS: ${isLunas ? 'LUNAS' : 'BELUM LUNAS'}\n\n`,
-    settings.footerStruk ? `${settings.footerStruk.trim()}\n` : '',
-    'Terima kasih atas kunjungannya!\n',
-    'Simpan struk ini sbg bukti sah.\n',
-    '\n\n\n\n',           // Feed kertas kosong sebelum sobek
-  ].join('');
+  return generateFormattedReceiptText(
+    transaksi,
+    settings,
+    laundryName,
+    laundryAddress,
+    laundryPhone
+  );
 }
 
 /**
- * Sandingkan printer Bluetooth baru secara langsung (misal dari menu Pengaturan / tombol Ganti)
+ * Sandingkan printer Bluetooth baru secara langsung (dialog browser)
  */
 export async function pairBluetoothPrinterDirectly(): Promise<{
   success: boolean;
   message: string;
   printerName?: string;
 }> {
-  if (typeof window !== 'undefined' && window.isSecureContext === false) {
-    return {
-      success: false,
-      message: 'Web Bluetooth memerlukan koneksi aman (HTTPS). Pastikan situs diakses melalui HTTPS.',
-    };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nav = typeof navigator !== 'undefined' ? (navigator as any) : null;
-  if (!nav?.bluetooth || typeof nav.bluetooth.requestDevice !== 'function') {
-    return {
-      success: false,
-      message: 'Browser Anda tidak mendukung Web Bluetooth. Buka lewat Google Chrome di Android/PC atau gunakan aplikasi APK.',
-    };
-  }
-
-  try {
-    const device = await nav.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: KNOWN_PRINTER_SERVICES,
-    });
-
-    if (!device || !device.gatt) {
-      return { success: false, message: 'Gagal memilih printer Bluetooth.' };
-    }
-
-    const char = await findWriteCharacteristic(device);
-    cachedBluetoothDevice = device;
-    cachedCharacteristic = char;
-
-    const deviceName = device.name || 'Printer Bluetooth';
-    localStorage.setItem('saved_bt_printer_name', deviceName);
-    if (device.id) {
-      localStorage.setItem('saved_bt_printer_id', device.id);
-    }
-
-    return {
-      success: true,
-      message: `Printer ${deviceName} berhasil disambungkan & disimpan otomatis!`,
-      printerName: deviceName,
-    };
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes('User cancelled') || errorMsg.includes('cancelled')) {
-      return { success: false, message: 'Pemilihan printer dibatalkan oleh pengguna.' };
-    }
-    if (
-      errorMsg.includes('Bluetooth adapter not available') ||
-      errorMsg.includes('Bluetooth is not enabled') ||
-      errorMsg.includes('adapter is off')
-    ) {
-      return {
-        success: false,
-        message: 'Bluetooth pada perangkat Anda belum aktif. Silakan nyalakan Bluetooth lalu coba lagi.',
-      };
-    }
-    return { success: false, message: `Gagal menyambungkan printer: ${errorMsg}` };
-  }
+  return pairPrinterDirectly();
 }
 
 /**
- * Cetak langsung via Web Bluetooth API dengan:
- * 1. Zero-Prompt Auto-Reconnect: Jika printer sudah pernah tersimpan, langsung cetak tanpa dialog.
- * 2. Trik Chunking 64-Byte dengan jeda 25ms (Anti-Buffer Overflow)
+ * Cetak langsung via Web Bluetooth API (diselaraskan 100% dengan Android StrukHelper.kt)
  */
 export async function printViaWebBluetooth(
   transaksi: Transaksi,
@@ -525,170 +483,15 @@ export async function printViaWebBluetooth(
   forcePicker = false,
   onProgress?: (message: string) => void
 ): Promise<{ success: boolean; message: string; printerName?: string }> {
-  if (typeof window !== 'undefined' && window.isSecureContext === false) {
-    return {
-      success: false,
-      message: 'Web Bluetooth memerlukan koneksi aman (HTTPS). Pastikan situs diakses melalui HTTPS.',
-    };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nav = typeof navigator !== 'undefined' ? (navigator as any) : null;
-  if (!nav?.bluetooth || typeof nav.bluetooth.requestDevice !== 'function') {
-    return {
-      success: false,
-      message: 'Browser Anda tidak mendukung Web Bluetooth. Buka lewat Google Chrome di Android/PC atau gunakan aplikasi APK.',
-    };
-  }
-
-  let targetDeviceName =
-    (typeof window !== 'undefined' ? localStorage.getItem('saved_bt_printer_name') : null) || 'Printer Bluetooth';
-
-  try {
-    // 1. Bangun teks perintah ESC/POS 32-karakter
-    const escPosText = buildEscPosReceipt(
-      transaksi,
-      settings,
-      laundryName,
-      laundryAddress,
-      laundryPhone
-    );
-    const encoder = new TextEncoder();
-    let rawBytes: Uint8Array = encoder.encode(escPosText);
-
-    // Jika logo toko diaktifkan dan tersedia, sisipkan raster logo di awal nota
-    if (settings.useLogo && settings.logoPath) {
-      try {
-        const logoB64 = await getLogoBase64(settings);
-        if (logoB64) {
-          const logoRaster = await convertBase64ToEscPosRaster(logoB64, 240);
-          if (logoRaster && logoRaster.length > 0) {
-            const combined = new Uint8Array(logoRaster.length + rawBytes.length);
-            combined.set(logoRaster, 0);
-            combined.set(rawBytes, logoRaster.length);
-            rawBytes = combined;
-          }
-        }
-      } catch (logoErr) {
-        console.warn('Gagal memuat logo untuk ESC/POS, melanjutkan teks biasa:', logoErr);
-      }
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let activeChar: any = null;
-
-    // 2. Coba Zero-Prompt Auto-Reconnect jika tidak dipaksa buka dialog pemilih
-    if (!forcePicker) {
-      try {
-        // A. Gunakan cachedBluetoothDevice jika masih aktif di memori
-        if (cachedBluetoothDevice?.gatt) {
-          onProgress?.(`Menghubungkan ke ${targetDeviceName}...`);
-          if (!cachedBluetoothDevice.gatt.connected) {
-            await cachedBluetoothDevice.gatt.connect();
-          }
-          activeChar = await findWriteCharacteristic(cachedBluetoothDevice);
-          targetDeviceName = cachedBluetoothDevice.name || targetDeviceName;
-        } else if (typeof nav.bluetooth.getDevices === 'function') {
-          // B. Periksa perangkat yang sudah diberi izin sebelumnya oleh browser Chrome
-          const grantedDevices = await nav.bluetooth.getDevices();
-          const savedId = localStorage.getItem('saved_bt_printer_id');
-          const savedName = localStorage.getItem('saved_bt_printer_name');
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const matched = grantedDevices.find((d: any) =>
-            (savedId && d.id === savedId) || (savedName && d.name === savedName)
-          );
-
-          if (matched && matched.gatt) {
-            onProgress?.(`Menghubungkan ke printer tersimpan (${matched.name || targetDeviceName})...`);
-            await matched.gatt.connect();
-            activeChar = await findWriteCharacteristic(matched);
-            cachedBluetoothDevice = matched;
-            targetDeviceName = matched.name || targetDeviceName;
-          }
-        }
-      } catch (autoErr) {
-        console.warn('Auto-reconnect printer lama gagal:', autoErr);
-        // Reset cache untuk trigger pemilihan baru
-        cachedBluetoothDevice = null;
-        cachedCharacteristic = null;
-        activeChar = null;
-        onProgress?.(
-          `Printer tersimpan (${targetDeviceName}) tidak merespons (mungkin mati atau di luar jangkauan). Membuka pencarian baru...`
-        );
-      }
-    }
-
-    // 3. Jika belum terhubung atau dipaksa pilih baru, buka dialog pemilihan printer
-    if (!activeChar) {
-      onProgress?.('Silakan pilih printer Bluetooth Anda dari daftar dialog browser...');
-      const device = await nav.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: KNOWN_PRINTER_SERVICES,
-      });
-
-      if (!device || !device.gatt) {
-        return { success: false, message: 'Gagal terhubung ke printer Bluetooth yang dipilih.' };
-      }
-
-      onProgress?.(`Menghubungkan ke ${device.name || 'Printer Bluetooth'}...`);
-      activeChar = await findWriteCharacteristic(device);
-      cachedBluetoothDevice = device;
-      targetDeviceName = device.name || 'Printer Bluetooth';
-
-      // Simpan untuk cetak otomatis berikutnya tanpa dialog
-      localStorage.setItem('saved_bt_printer_name', targetDeviceName);
-      if (device.id) {
-        localStorage.setItem('saved_bt_printer_id', device.id);
-      }
-    }
-
-    // 4. Eksekusi Pengiriman ke Bluetooth dengan Trik Chunking 64-Byte & Jeda 25ms (Anti-Buffer Overflow)
-    onProgress?.(`Mengirim data struk ke ${targetDeviceName}...`);
-    const chunkSize = 64;
-    for (let i = 0; i < rawBytes.length; i += chunkSize) {
-      const chunk = rawBytes.slice(i, i + chunkSize);
-      if (activeChar.properties?.writeWithoutResponse) {
-        await activeChar.writeValueWithoutResponse(chunk);
-      } else {
-        await activeChar.writeValue(chunk);
-      }
-      // Jeda 25 milidetik antar pengiriman chunk
-      await new Promise((r) => setTimeout(r, 25));
-    }
-
-    return {
-      success: true,
-      message: `Struk berhasil dicetak ke ${targetDeviceName}!`,
-      printerName: targetDeviceName,
-    };
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes('User cancelled') || errorMsg.includes('cancelled')) {
-      return { success: false, message: 'Pemilihan printer dibatalkan oleh pengguna.' };
-    }
-    if (
-      errorMsg.includes('Bluetooth adapter not available') ||
-      errorMsg.includes('Bluetooth is not enabled') ||
-      errorMsg.includes('adapter is off')
-    ) {
-      return {
-        success: false,
-        message: 'Bluetooth pada perangkat Anda belum aktif. Silakan nyalakan Bluetooth lalu coba lagi.',
-      };
-    }
-    if (
-      errorMsg.includes('GATT') ||
-      errorMsg.includes('Connection failed') ||
-      errorMsg.includes('NetworkError') ||
-      errorMsg.includes('disconnected')
-    ) {
-      return {
-        success: false,
-        message: `Koneksi ke ${targetDeviceName} terputus atau gagal terhubung. Pastikan printer dalam keadaan HIDUP (ON) dan dalam jarak dekat.`,
-      };
-    }
-    return { success: false, message: `Gagal cetak Bluetooth: ${errorMsg}` };
-  }
+  return cetakViaWebBluetooth(
+    transaksi,
+    settings,
+    laundryName,
+    laundryAddress,
+    laundryPhone,
+    forcePicker,
+    onProgress
+  );
 }
+
 

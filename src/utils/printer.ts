@@ -1,5 +1,7 @@
 import { Transaksi, SettingsData } from '../types';
-import { getLogoBase64 } from './logoHelper';
+import { getLogoBase64, convertBase64ToEscPosRaster } from './logoHelper';
+import { DEFAULT_KAFELA_LOGO_BASE64 } from './defaultLogo';
+import { generateFormattedReceiptText, generateEscPosReceiptBytes } from './receiptFormatter';
 
 // Universal Bluetooth Services & Characteristics untuk Printer Thermal Kasir
 export const KNOWN_PRINTER_SERVICES = [
@@ -162,7 +164,7 @@ export function disconnectBluetoothPrinter(): void {
  * menggunakan daftar universal KNOWN_PRINTER_SERVICES & KNOWN_PRINTER_CHARACTERISTICS
  */
 async function findWriteCharacteristic(device: any): Promise<any> {
-  const server = await device.gatt.connect();
+  const server = device.gatt?.connected ? device.gatt : await device.gatt.connect();
   let targetChar: any = null;
 
   // A. Cari berdasarkan kombinasi service dan characteristic yang umum pada printer kasir
@@ -219,78 +221,12 @@ async function findWriteCharacteristic(device: any): Promise<any> {
   return targetChar;
 }
 
-/**
- * Konversi gambar logo Base64 ke perintah ESC/POS raster bit image (GS v 0)
- */
-async function convertBase64ToEscPosRaster(base64: string, targetWidth = 240): Promise<Uint8Array | null> {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return null;
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const w = (targetWidth + 7) & ~7;
-        const scale = w / img.width;
-        const h = Math.round(img.height * scale);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return resolve(null);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-
-        const imgData = ctx.getImageData(0, 0, w, h);
-        const data = imgData.data;
-
-        const xL = (w / 8) & 0xff;
-        const xH = ((w / 8) >> 8) & 0xff;
-        const yL = h & 0xff;
-        const yH = (h >> 8) & 0xff;
-
-        const header = [0x1b, 0x61, 0x01, 0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH];
-        const bytesPerRow = w / 8;
-        const rasterBytes: number[] = [];
-
-        for (let y = 0; y < h; y++) {
-          for (let byteX = 0; byteX < bytesPerRow; byteX++) {
-            let byteVal = 0;
-            for (let bit = 0; bit < 8; bit++) {
-              const pxIndex = (y * w + (byteX * 8 + bit)) * 4;
-              const r = data[pxIndex];
-              const g = data[pxIndex + 1];
-              const b = data[pxIndex + 2];
-              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-              if (gray < 160) {
-                byteVal |= 1 << (7 - bit);
-              }
-            }
-            rasterBytes.push(byteVal);
-          }
-        }
-
-        const fullData = new Uint8Array(header.length + rasterBytes.length + 2);
-        fullData.set(header, 0);
-        fullData.set(rasterBytes, header.length);
-        fullData.set([0x0a, 0x0a], header.length + rasterBytes.length);
-        resolve(fullData);
-      } catch (e) {
-        console.warn('Gagal memproses raster logo:', e);
-        resolve(null);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
-  });
-}
+// Export konversi raster logo dengan kanvas 384-dot
+export { convertBase64ToEscPosRaster };
 
 /**
  * Formatter Perintah ESC/POS Standar (32 Karakter per Baris)
- * Kompatibel dengan semua printer thermal bluetooth kasir (58mm)
+ * 100% PERSIS susunannya dengan Android APK (StrukHelper.kt) dan Preview Struk
  */
 export function buildEscPosReceipt(
   transaksi: Transaksi,
@@ -299,66 +235,15 @@ export function buildEscPosReceipt(
   laundryAddress?: string,
   laundryPhone?: string
 ): string {
-  const line = '--------------------------------\n';
-  const doubleLine = '================================\n';
-
-  const namaBrand = laundryName || settings.headerStruk || 'Kafelas Laundry';
-  const noInvoice = transaksi.nomorTransaksi || 'INV-001';
-  const namaAdmin = transaksi.dikerjakanOleh || 'Kasir';
-  const namaKlien = transaksi.namaPelanggan || 'Pelanggan';
-  const isLunas = transaksi.statusPembayaran === 'Lunas';
-  const diskon = transaksi.diskon || 0;
-  const totalTarif = transaksi.totalHarga;
-  const dpDibayar = transaksi.jumlahDp || 0;
-  const sisa = isLunas ? 0 : Math.max(0, totalTarif - dpDibayar);
-  const nominalDibayar = isLunas ? totalTarif : dpDibayar;
-
-  const items = Array.isArray(transaksi.items) && transaksi.items.length > 0 ? transaksi.items : [];
-  let itemsSection = '';
-  if (items.length > 0) {
-    itemsSection = items
-      .map((it) => {
-        const itemLine = `${(it.namaLayanan || 'Layanan').slice(0, 32)}\n`;
-        const subLine = `  ${it.berat || 0} ${it.satuan || ''} x ${it.hargaPerKg || it.hargaSatuan || 0} = Rp ${(
-          it.subtotal || 0
-        ).toLocaleString('id-ID')}\n`;
-        return itemLine + subLine;
-      })
-      .join('');
-  } else {
-    itemsSection = `Layanan : Cucian Laundry\nTotal   : Rp ${totalTarif.toLocaleString('id-ID')}\n`;
-  }
-
-  return [
-    '\x1B\x40',         // 1. Reset / Init printer
-    '\x1B\x61\x01',     // 2. Rata Tengah (Center)
-    '\x1B\x21\x10',     // 3. Teks Besar (Double Height)
-    `${namaBrand.toUpperCase()}\n`,
-    '\x1B\x21\x00',     // 4. Kembali Teks Normal
-    'Struk Pembayaran Resmi\n',
-    doubleLine,
-    isLunas ? 'BUKTI PELUNASAN\n' : 'BUKTI PEMBAYARAN (DP)\n',
-    line,
-    '\x1B\x61\x00',     // 5. Rata Kiri
-    `No.Inv  : #${noInvoice}\n`,
-    `Kasir   : ${namaAdmin}\n`,
-    `Klien   : ${namaKlien}\n`,
-    line,
-    itemsSection,
-    diskon > 0 ? `Diskon  : -Rp ${diskon.toLocaleString('id-ID')}\n` : '',
-    line,
-    `Total   : Rp ${totalTarif.toLocaleString('id-ID')}\n`,
-    `Dibayar : Rp ${nominalDibayar.toLocaleString('id-ID')}\n`,
-    !isLunas ? `Sisa    : Rp ${sisa.toLocaleString('id-ID')}\n` : '',
-    doubleLine,
-    '\x1B\x61\x01',     // Rata Tengah
-    `STATUS: ${isLunas ? 'LUNAS' : 'BELUM LUNAS'}\n\n`,
-    settings.footerStruk ? `${settings.footerStruk.trim()}\n` : '',
-    'Terima kasih atas kunjungannya!\n',
-    'Simpan struk ini sbg bukti sah.\n',
-    '\n\n\n\n',           // Feed kertas kosong sebelum sobek
-  ].join('');
+  return generateFormattedReceiptText(
+    transaksi,
+    settings,
+    laundryName,
+    laundryAddress,
+    laundryPhone
+  );
 }
+
 
 /**
  * Sandingkan printer Bluetooth baru secara langsung (dialog browser)
@@ -462,91 +347,137 @@ export async function cetakViaWebBluetooth(
     (typeof window !== 'undefined' ? localStorage.getItem('saved_bt_printer_name') : null) || 'Printer Bluetooth';
 
   try {
-    // 1. Bangun teks perintah ESC/POS 32-karakter
-    const escPosText = buildEscPosReceipt(
+    // Siapkan raster logo monokrom 240px (jika logo diaktifkan)
+    let logoRaster: Uint8Array | null = null;
+    if (settings.useLogo !== false) {
+      try {
+        let logoB64 = '';
+        if (settings.useLogo && settings.logoPath) {
+          logoB64 = await getLogoBase64(settings);
+        }
+        if (!logoB64) {
+          logoB64 = DEFAULT_KAFELA_LOGO_BASE64;
+        }
+        if (logoB64) {
+          logoRaster = await convertBase64ToEscPosRaster(logoB64, 240);
+        }
+      } catch (logoErr) {
+        console.warn('Gagal memproses raster logo Web Bluetooth:', logoErr);
+      }
+    }
+
+    // Susun payload biner ESC/POS lengkap yang 100% identik ("plek ketiplek") dengan cetak fisik StrukHelper di APK
+    const rawBytes = generateEscPosReceiptBytes(
       transaksi,
       settings,
       laundryName,
       laundryAddress,
-      laundryPhone
+      laundryPhone,
+      logoRaster
     );
-    const encoder = new TextEncoder();
-    let rawBytes: Uint8Array = encoder.encode(escPosText);
 
-    // Jika logo toko diaktifkan dan tersedia, sisipkan raster logo di awal nota
-    if (settings.useLogo && settings.logoPath) {
-      try {
-        const logoB64 = await getLogoBase64(settings);
-        if (logoB64) {
-          const logoRaster = await convertBase64ToEscPosRaster(logoB64, 240);
-          if (logoRaster && logoRaster.length > 0) {
-            const combined = new Uint8Array(logoRaster.length + rawBytes.length);
-            combined.set(logoRaster, 0);
-            combined.set(rawBytes, logoRaster.length);
-            rawBytes = combined;
-          }
-        }
-      } catch (logoErr) {
-        console.warn('Gagal memuat logo untuk ESC/POS, melanjutkan teks biasa:', logoErr);
-      }
-    }
 
     let activeChar: any = null;
+    const savedName = typeof window !== 'undefined' ? localStorage.getItem('saved_bt_printer_name') : null;
+    const savedId = typeof window !== 'undefined' ? localStorage.getItem('saved_bt_printer_id') : null;
+    const hasPreviousPrinter = Boolean(cachedBluetoothDevice || savedName || savedId);
 
-    // 2. Coba Zero-Prompt Auto-Reconnect jika tidak dipaksa buka dialog pemilih
+    // 2. ZERO-PROMPT AUTO-RECONNECT: JIKA SUDAH PERNAH PRINT, GUNAKAN ITU SAJA (JANGAN TANYA LAGI)
     if (!forcePicker) {
-      try {
-        if (cachedBluetoothDevice?.gatt) {
-          onProgress?.(`Menghubungkan ke ${targetDeviceName}...`);
-          if (!cachedBluetoothDevice.gatt.connected) {
-            await cachedBluetoothDevice.gatt.connect();
+      // Prioritas A: Gunakan perangkat printer yang tersimpan di memori sesi aktif
+      if (cachedBluetoothDevice?.gatt) {
+        targetDeviceName = cachedBluetoothDevice.name || savedName || targetDeviceName;
+        try {
+          if (cachedBluetoothDevice.gatt.connected && cachedCharacteristic) {
+            activeChar = cachedCharacteristic;
+          } else {
+            onProgress?.(`Menghubungkan ke ${targetDeviceName}...`);
+            if (!cachedBluetoothDevice.gatt.connected) {
+              await cachedBluetoothDevice.gatt.connect();
+            }
+            activeChar = await findWriteCharacteristic(cachedBluetoothDevice);
+            cachedCharacteristic = activeChar;
           }
-          activeChar = await findWriteCharacteristic(cachedBluetoothDevice);
-          targetDeviceName = cachedBluetoothDevice.name || targetDeviceName;
-        } else if (typeof nav.bluetooth.getDevices === 'function') {
-          const grantedDevices = await nav.bluetooth.getDevices();
-          const savedId = localStorage.getItem('saved_bt_printer_id');
-          const savedName = localStorage.getItem('saved_bt_printer_name');
-
-          const matched = grantedDevices.find(
-            (d: any) => (savedId && d.id === savedId) || (savedName && d.name === savedName)
-          );
-
-          if (matched && matched.gatt) {
-            onProgress?.(`Menghubungkan ke printer tersimpan (${matched.name || targetDeviceName})...`);
-            await matched.gatt.connect();
-            activeChar = await findWriteCharacteristic(matched);
-            cachedBluetoothDevice = matched;
-            targetDeviceName = matched.name || targetDeviceName;
+        } catch (memErr) {
+          console.warn('[WebBluetooth] Percobaan 1 reconnect memori gagal, mencoba 1x lagi:', memErr);
+          try {
+            await new Promise((r) => setTimeout(r, 350));
+            if (!cachedBluetoothDevice.gatt.connected) {
+              await cachedBluetoothDevice.gatt.connect();
+            }
+            activeChar = await findWriteCharacteristic(cachedBluetoothDevice);
+            cachedCharacteristic = activeChar;
+          } catch (retryErr) {
+            console.warn('[WebBluetooth] Reconnect memori gagal:', retryErr);
           }
         }
-      } catch (autoErr) {
-        console.warn('Auto-reconnect printer lama gagal:', autoErr);
-        cachedBluetoothDevice = null;
-        cachedCharacteristic = null;
-        activeChar = null;
-        onProgress?.(
-          `Printer tersimpan (${targetDeviceName}) tidak merespons. Membuka pencarian baru...`
-        );
+      }
+
+      // Prioritas B: Gunakan navigator.bluetooth.getDevices() jika browser mendukung (misal setelah refresh)
+      if (!activeChar && typeof nav.bluetooth?.getDevices === 'function') {
+        try {
+          const grantedDevices = await nav.bluetooth.getDevices();
+          let matched = grantedDevices.find(
+            (d: any) => (savedId && d.id === savedId) || (savedName && d.name === savedName)
+          );
+          if (!matched && grantedDevices.length === 1 && savedName) {
+            matched = grantedDevices[0];
+          }
+
+          if (matched?.gatt) {
+            targetDeviceName = matched.name || savedName || targetDeviceName;
+            onProgress?.(`Menghubungkan ke ${targetDeviceName}...`);
+            if (!matched.gatt.connected) {
+              await matched.gatt.connect();
+            }
+            activeChar = await findWriteCharacteristic(matched);
+            cachedBluetoothDevice = matched;
+            cachedCharacteristic = activeChar;
+          }
+        } catch (getDevErr) {
+          console.warn('[WebBluetooth] getDevices() gagal:', getDevErr);
+        }
+      }
+
+      // JIKA PRINTER SUDAH PERNAH DIPILIH TETAPI HARDWARE MATI / TIDAK MERESPONS:
+      // JANGAN PERNAH MUNCULKAN POP-UP PILIH PRINTER SECARA PAKSA!
+      if (!activeChar && hasPreviousPrinter) {
+        return {
+          success: false,
+          message: `Printer '${targetDeviceName}' tidak merespons. Pastikan printer MENYALA dan Bluetooth aktif. (Klik tombol 'Ganti' di atas jika ingin memilih printer lain)`,
+        };
       }
     }
 
-    // 3. Jika belum terhubung atau dipaksa pilih baru, buka dialog pemilihan printer
+    // 3. Hanya buka dialog pemilih printer jika BELUM PERNAH ADA PRINTER yang dipilih sama sekali,
+    // atau jika kasir secara sengaja menekan tombol 'Ganti' (forcePicker = true)
     if (!activeChar) {
-      onProgress?.('Silakan pilih printer Bluetooth Anda dari daftar...');
+      onProgress?.('Silakan pilih printer Bluetooth Anda...');
       const device = await nav.bluetooth.requestDevice({
         acceptAllDevices: true,
         optionalServices: KNOWN_PRINTER_SERVICES,
       });
 
       if (!device || !device.gatt) {
-        return { success: false, message: 'Gagal terhubung ke printer Bluetooth yang dipilih.' };
+        return { success: false, message: 'Gagal memilih printer Bluetooth.' };
       }
 
-      onProgress?.(`Menghubungkan ke ${device.name || 'Printer Bluetooth'}...`);
+      targetDeviceName = device.name || 'Printer Bluetooth';
+      onProgress?.(`Menghubungkan ke ${targetDeviceName}...`);
+
+      if (!device.gatt.connected) {
+        await device.gatt.connect();
+      }
       activeChar = await findWriteCharacteristic(device);
       cachedBluetoothDevice = device;
-      targetDeviceName = device.name || 'Printer Bluetooth';
+      cachedCharacteristic = activeChar;
+
+      try {
+        device.addEventListener('gattserverdisconnected', () => {
+          console.log('[WebBluetooth] Printer Bluetooth terputus / standby.');
+          cachedCharacteristic = null;
+        });
+      } catch {}
 
       localStorage.setItem('saved_bt_printer_name', targetDeviceName);
       if (device.id) {

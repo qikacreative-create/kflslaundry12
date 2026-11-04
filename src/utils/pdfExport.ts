@@ -100,7 +100,7 @@ export function generateLaporanPdf(data: LaporanPdfData): string {
   const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
   doc.setFontSize(7.5);
   doc.setTextColor(130, 130, 130);
-  doc.text(`Dicetak pada: ${dateStr} pukul ${timeStr} WIB`, pageWidth / 2, y, { align: 'center' });
+  doc.text(`Dicetak pada: ${dateStr} ${timeStr} WIB`, pageWidth / 2, y, { align: 'center' });
 
   y += 6.5;
 

@@ -639,7 +639,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 font-medium pt-1">
             <span>Kafelas Laundry</span>
             <span>·</span>
-            <span>Versi 40</span>
+            <span>v.41.2</span>
             <span>·</span>
             <span className="text-emerald-600 font-medium inline-flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>

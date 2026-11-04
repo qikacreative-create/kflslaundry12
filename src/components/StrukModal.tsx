@@ -463,7 +463,7 @@ const noStruk = jadwal.idJadwal || 'INV001';
       '\x1B\x40', // Init printer
       '\x1B\x61\x01', // Center align
       '\x1B\x21\x10', // Double height
-      `${(owner.namaBrand || "KAFELA'S STUDIO").toUpperCase()}\n`,
+      `${(owner.namaBrand || "Laundry").toUpperCase()}\n`,
       '\x1B\x21\x00', // Normal text
       'Struk Pembayaran Resmi\n',
       eqSep,

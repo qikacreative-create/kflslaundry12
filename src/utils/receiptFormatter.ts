@@ -158,7 +158,11 @@ export function generateFormattedReceiptText(
   lines.push(divider);
 
   // 11. Metode Pembayaran, Catatan & Catatan Kaki (Center)
-  if (transaksi.metodePembayaran) {
+  const isTunai =
+    !transaksi.metodePembayaran ||
+    ['tunai', 'cash'].includes(transaksi.metodePembayaran.trim().toLowerCase());
+
+  if (!isTunai) {
     const detail = transaksi.metodePembayaranDetail ? ` (${transaksi.metodePembayaranDetail})` : '';
     lines.push(centerText(`Metode: ${transaksi.metodePembayaran}${detail}`, LINE_WIDTH));
   }
@@ -178,9 +182,7 @@ export function generateFormattedReceiptText(
     }
   }
 
-  // Jarak penutup feed kertas
-  lines.push('');
-  lines.push('');
+  // Jarak penutup feed kertas yang rapat & hemat kertas
   lines.push('');
 
   return lines.join('\n');
@@ -217,39 +219,47 @@ export function generateEscPosReceiptBytes(
 
   const divider = '--------------------------------\n';
 
-  // Perintah ESC/POS
+  // Perintah ESC/POS Standar Printer Kasir Thermal
   const ESC_INIT = [0x1b, 0x40];
+  const CHARSET_PC437 = [0x1b, 0x74, 0x00]; // Standar USA / Indonesia
+  const LINE_SPACING_DEFAULT = [0x1b, 0x32]; // Spasi baris 1/6 inci
   const ALIGN_CENTER = [0x1b, 0x61, 0x01];
   const ALIGN_LEFT = [0x1b, 0x61, 0x00];
   const BOLD_ON = [0x1b, 0x45, 0x01];
   const BOLD_OFF = [0x1b, 0x45, 0x00];
-  const FONT_LARGE = [0x1d, 0x21, 0x11]; // Double width & height
+  const FONT_LARGE = [0x1d, 0x21, 0x11]; // Double width & height (Persis APK)
   const FONT_NORMAL = [0x1d, 0x21, 0x00];
+  const FEED_PAPER_1 = [0x1b, 0x64, 0x01]; // Feed 1 baris kertas rapat (hemat kertas & tanpa jarak kosong bawah)
 
-  // 0. Inisialisasi
+  // 0. Inisialisasi printer fisik (langsung tanpa jarak atas kosong)
   bytes.push(...ESC_INIT);
+  bytes.push(...CHARSET_PC437);
+  bytes.push(...LINE_SPACING_DEFAULT);
 
-  // Logo Toko (Center) jika tersedia
+  // Logo Toko (Center) jika tersedia (langsung menempel ke nama toko tanpa baris kosong pemisah)
   if (logoRasterBytes && logoRasterBytes.length > 0) {
     bytes.push(...ALIGN_CENTER);
     for (let i = 0; i < logoRasterBytes.length; i++) {
       bytes.push(logoRasterBytes[i]);
     }
-    writeText('\n');
   }
 
   bytes.push(...ALIGN_CENTER);
 
-  // 1. Header Toko (Center)
+  // 1. Header Toko (Center + BOLD)
   bytes.push(...BOLD_ON);
-  writeText(`${brand.toUpperCase()}\n`);
+  writeText(`${brand.toUpperCase()}\r\n`);
   bytes.push(...BOLD_OFF);
 
-  if (phone) {
-    writeText(`${phone}\n`);
-  }
   if (address) {
-    writeText(`${address}\n`);
+    for (const line of wrapText(address, LINE_WIDTH, 'center')) {
+      writeText(`${line}\r\n`);
+    }
+  }
+
+  if (phone) {
+    const formattedPhone = phone.toLowerCase().startsWith('telp') ? phone : `Telp: ${phone}`;
+    writeText(`${centerText(formattedPhone, LINE_WIDTH)}\r\n`);
   }
 
   // 2. Garis Pemisah
@@ -257,32 +267,31 @@ export function generateEscPosReceiptBytes(
 
   // 3. Metadata Nota (No, Terima, Selesai, Yth. Bapak/Ibu)
   bytes.push(...ALIGN_LEFT);
-  writeText(`${alignLeftRight('No.', transaksi.nomorTransaksi || '-', LINE_WIDTH)}\n`);
-  writeText(`${alignLeftRight('Terima', formatReceiptDate(transaksi.tanggalMasuk, true), LINE_WIDTH)}\n`);
+  const invoiceNo = transaksi.nomorTransaksi ? `#${transaksi.nomorTransaksi.replace(/^#/, '')}` : '-';
+  writeText(`${alignLeftRight('No.', invoiceNo, LINE_WIDTH)}\r\n`);
+  writeText(`${alignLeftRight('Terima', formatReceiptDate(transaksi.tanggalMasuk, true), LINE_WIDTH)}\r\n`);
   if (transaksi.tanggalSelesai) {
-    writeText(`${alignLeftRight('Selesai', formatReceiptDate(transaksi.tanggalSelesai), LINE_WIDTH)}\n`);
+    writeText(`${alignLeftRight('Selesai', formatReceiptDate(transaksi.tanggalSelesai), LINE_WIDTH)}\r\n`);
   }
-  writeText('Yth. Bapak/Ibu\n');
+  writeText('Yth. Bapak/Ibu\r\n');
 
   // 4. Garis Pemisah
   writeText(divider);
 
-  // 5. Nama Pelanggan & Status Pembayaran (Center)
+  // 5. Nama Pelanggan & Status Pembayaran (Center + BOLD + FONT_LARGE persis APK)
   bytes.push(...ALIGN_CENTER);
   bytes.push(...BOLD_ON);
   bytes.push(...FONT_LARGE);
-  writeText(`${(transaksi.namaPelanggan || 'PELANGGAN').toUpperCase()}\n`);
+  writeText(`${(transaksi.namaPelanggan || 'PELANGGAN').toUpperCase()}\r\n`);
   bytes.push(...FONT_NORMAL);
-  bytes.push(...BOLD_OFF);
 
   if (transaksi.alamat) {
-    writeText(`(${transaksi.alamat})\n`);
+    writeText(`(${transaksi.alamat})\r\n`);
   }
 
-  bytes.push(...BOLD_ON);
-  writeText(`${statusFinal}\n`);
+  writeText(`${statusFinal}\r\n`);
   if (sisaBayar > 0) {
-    writeText(`Rp.${formatNumberOnly(sisaBayar)},-\n`);
+    writeText(`Rp.${formatNumberOnly(sisaBayar)},-\r\n`);
   }
   bytes.push(...BOLD_OFF);
 
@@ -295,17 +304,17 @@ export function generateEscPosReceiptBytes(
   if (items.length > 0) {
     for (const item of items) {
       bytes.push(...BOLD_ON);
-      writeText(`${(item?.namaLayanan || 'Layanan').slice(0, LINE_WIDTH)}\n`);
+      writeText(`${(item?.namaLayanan || 'Layanan').slice(0, LINE_WIDTH)}\r\n`);
       bytes.push(...BOLD_OFF);
       const leftCol = `${item?.berat || 0} ${item?.satuan || ''} x ${formatNumberOnly(item?.hargaPerKg || item?.hargaSatuan || 0)}`;
       const rightCol = `= ${formatNumberOnly(item?.subtotal || 0)}`;
-      writeText(`${alignLeftRight(leftCol, rightCol, LINE_WIDTH)}\n`);
+      writeText(`${alignLeftRight(leftCol, rightCol, LINE_WIDTH)}\r\n`);
     }
   } else {
     bytes.push(...BOLD_ON);
-    writeText('Cucian Laundry\n');
+    writeText('Cucian Laundry\r\n');
     bytes.push(...BOLD_OFF);
-    writeText(`${alignLeftRight('1 Paket', `= ${formatNumberOnly(transaksi.totalHarga)}`, LINE_WIDTH)}\n`);
+    writeText(`${alignLeftRight('1 Paket', `= ${formatNumberOnly(transaksi.totalHarga)}`, LINE_WIDTH)}\r\n`);
   }
 
   // 8. Garis Pemisah
@@ -313,49 +322,54 @@ export function generateEscPosReceiptBytes(
 
   // 9. Rincian Keuangan / Total Transaksi
   bytes.push(...BOLD_ON);
-  writeText(`${alignLeftRight('Total Transaksi', 'Rp ' + formatNumberOnly(transaksi.totalHarga), LINE_WIDTH)}\n`);
+  writeText(`${alignLeftRight('Total Transaksi', 'Rp ' + formatNumberOnly(transaksi.totalHarga), LINE_WIDTH)}\r\n`);
   bytes.push(...BOLD_OFF);
 
   if (transaksi.jumlahDp > 0) {
-    writeText(`${alignLeftRight('Pembayaran Awal', 'Rp ' + formatNumberOnly(transaksi.jumlahDp), LINE_WIDTH)}\n`);
+    writeText(`${alignLeftRight('Pembayaran Awal', 'Rp ' + formatNumberOnly(transaksi.jumlahDp), LINE_WIDTH)}\r\n`);
   }
   if (sisaBayar > 0) {
     bytes.push(...BOLD_ON);
-    writeText(`${alignLeftRight('Sisa Pembayaran', 'Rp ' + formatNumberOnly(sisaBayar), LINE_WIDTH)}\n`);
+    writeText(`${alignLeftRight('Sisa Pembayaran', 'Rp ' + formatNumberOnly(sisaBayar), LINE_WIDTH)}\r\n`);
     bytes.push(...BOLD_OFF);
   } else if (isLunas && transaksi.jumlahDp > 0 && transaksi.jumlahDp < transaksi.totalHarga) {
     bytes.push(...BOLD_ON);
-    writeText(`${alignLeftRight('Pelunasan', 'Rp ' + formatNumberOnly(transaksi.totalHarga - transaksi.jumlahDp), LINE_WIDTH)}\n`);
+    writeText(`${alignLeftRight('Pelunasan', 'Rp ' + formatNumberOnly(transaksi.totalHarga - transaksi.jumlahDp), LINE_WIDTH)}\r\n`);
     bytes.push(...BOLD_OFF);
   }
 
   // 10. Garis Pemisah
   writeText(divider);
 
-  // 11. Metode Pembayaran, Catatan & Catatan Kaki (Center)
+  // 11. Metode Pembayaran (Hanya tampil jika non-tunai seperti Transfer / QRIS) & Catatan
   bytes.push(...ALIGN_CENTER);
-  if (transaksi.metodePembayaran) {
+  const isMetodeTunai =
+    !transaksi.metodePembayaran ||
+    ['tunai', 'cash'].includes(transaksi.metodePembayaran.trim().toLowerCase());
+
+  if (!isMetodeTunai) {
     const detail = transaksi.metodePembayaranDetail ? ` (${transaksi.metodePembayaranDetail})` : '';
-    writeText(`Metode: ${transaksi.metodePembayaran}${detail}\n`);
+    writeText(`Metode: ${transaksi.metodePembayaran}${detail}\r\n`);
   }
   if (transaksi.catatan) {
     for (const line of wrapText(`Catatan: ${transaksi.catatan}`, LINE_WIDTH, 'center')) {
-      writeText(`${line}\n`);
+      writeText(`${line}\r\n`);
     }
   }
   if (settings.footerStruk) {
     for (const line of wrapText(settings.footerStruk, LINE_WIDTH, 'center')) {
-      writeText(`${line}\n`);
+      writeText(`${line}\r\n`);
     }
   }
   if (settings.chattyFooter) {
     for (const line of wrapText(settings.chattyFooter, LINE_WIDTH, 'center')) {
-      writeText(`${line}\n`);
+      writeText(`${line}\r\n`);
     }
   }
 
-  // Feed kertas 4 baris
-  writeText('\n\n\n\n');
+  // Feed kertas 1 baris minimal rapat (menghilangkan jarak kosong bawah)
+  bytes.push(...FEED_PAPER_1);
+  writeText('\r\n');
 
   return new Uint8Array(bytes);
 }

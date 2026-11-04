@@ -119,7 +119,7 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
         id={id}
         data-receipt-capture={isCaptureNode ? 'true' : undefined}
         data-trx-id={transaksi.id}
-        className={`w-[320px] sm:w-[350px] bg-white text-slate-900 p-6 rounded-xl shadow-2xl border border-slate-200 relative font-mono text-[11px] leading-tight select-none ${className}`}
+        className={`w-[320px] sm:w-[350px] bg-white text-slate-900 px-4 pt-3 pb-3 rounded-xl shadow-2xl border border-slate-200 relative font-mono text-[11px] leading-tight select-none ${className}`}
         style={{ fontFamily: '"Courier New", Courier, monospace' }}
       >
         {/* A. WATERMARK DIAGONAL BERULANG (Gaya Fintech / DANA) */}
@@ -136,9 +136,9 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
         </div>
 
         {/* B. KONTEN STRUK */}
-        <div className="relative z-10 space-y-2">
-          {/* Header Toko */}
-          <div className="flex items-center gap-3">
+        <div className="relative z-10 space-y-1.5">
+          {/* Header Toko (Rapat tanpa jarak atas berlebih) */}
+          <div className="flex items-center gap-2.5">
             {hasLogoEnabled && thermalLogoSrc && (
               <img
                 ref={logoImgRef}
@@ -147,11 +147,11 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
                 referrerPolicy="no-referrer"
                 onLoad={() => requestAnimationFrame(() => onLogoReady?.())}
                 onError={() => requestAnimationFrame(() => onLogoReady?.())}
-                className="h-10 w-auto max-w-[80px] object-contain shrink-0"
+                className="h-9 w-auto max-w-[75px] object-contain shrink-0 my-0"
               />
             )}
             <div className="min-w-0 flex-1">
-              <h2 className="text-xs font-black uppercase text-slate-950 truncate">{namaBrand}</h2>
+              <h2 className="text-xs font-black uppercase text-slate-950 truncate leading-snug">{namaBrand}</h2>
               {teleponBrand && <p className="text-[9px] text-slate-600 truncate">{teleponBrand}</p>}
               {alamatBrand && <p className="text-[9px] text-slate-600 line-clamp-2">{alamatBrand}</p>}
             </div>
@@ -258,13 +258,14 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
 
           <div className="border-b border-dashed border-slate-700 my-2" />
 
-          {/* Info Pembayaran & Rekening */}
-          {transaksi.metodePembayaran && (
-            <p className="text-[9px] text-center text-slate-600">
-              Metode: {transaksi.metodePembayaran}
-              {transaksi.metodePembayaranDetail ? ` (${transaksi.metodePembayaranDetail})` : ''}
-            </p>
-          )}
+          {/* Info Pembayaran (Hanya tampil jika non-tunai seperti Transfer / QRIS) */}
+          {transaksi.metodePembayaran &&
+            !['tunai', 'cash'].includes(transaksi.metodePembayaran.trim().toLowerCase()) && (
+              <p className="text-[9px] text-center font-bold text-slate-800">
+                Metode: {transaksi.metodePembayaran}
+                {transaksi.metodePembayaranDetail ? ` (${transaksi.metodePembayaranDetail})` : ''}
+              </p>
+            )}
 
           {transaksi.catatan && (
             <p className="text-[9px] text-center text-slate-700 italic">
@@ -284,7 +285,7 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
             </p>
           )}
 
-          <p className="text-center text-[8px] text-slate-500 italic mt-2">
+          <p className="text-center text-[8px] text-slate-500 italic mt-1">
             Simpan struk ini sebagai bukti transaksi yang sah.
           </p>
         </div>
