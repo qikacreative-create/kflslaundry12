@@ -18,10 +18,10 @@
   }
 
   /* 1. Struk thermal receipt (58mm) */
-  #printable-receipt, #printable-receipt * {
+  #printable-receipt, #printable-receipt *, #printable-receipt-area, #printable-receipt-area * {
     visibility: visible !important;
   }
-  #printable-receipt {
+  #printable-receipt, #printable-receipt-area {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;

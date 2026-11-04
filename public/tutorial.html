@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tutorial Kafelas Laundry</title>
+  <meta name="description" content="Panduan interaktif tombol dan fungsi aplikasi kasir Kafela's Laundry dengan garis panah penunjuk langsung ke tiap bagian layar." />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- Tailwind CSS via CDN (Mandiri, Tanpa Kompilasi) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              600: '#800000',
+              700: '#700000',
+              800: '#590000',
+              900: '#3a0000',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Web Fonts for Handwritten Callout Style -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Kalam:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .font-hand { font-family: 'Caveat', cursive; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-stone-100 text-slate-800 antialiased selection:bg-[#800000] selection:text-white">
+
+  <!-- 1. TOP HEADER NAVIGATION -->
+  <header class="sticky top-0 z-50 bg-[#800000] text-white shadow-md">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 sm:gap-2.5">
+        <div>
+          <span class="font-black text-sm sm:text-lg tracking-tight text-white">
+            Kafelas Laundry
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 sm:gap-2.5">
+        <a
+          href="/profil.html"
+          class="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold bg-white/15 hover:bg-white/25 text-white border border-white/20 transition whitespace-nowrap"
+        >
+          Profil
+        </a>
+        <!-- Switcher Mode: Peta Garis Lengkap vs Mode Ringkas HP -->
+        <div class="inline-flex rounded-lg border border-white/20 bg-black/25 p-0.5 text-xs">
+          <button
+            id="btnModePetaGaris"
+            type="button"
+            class="px-2.5 py-1 rounded text-[11px] font-bold bg-amber-400 text-slate-950 transition cursor-pointer"
+            title="Peta tombol dengan garis penunjuk aktif"
+          >
+            Garis
+          </button>
+          <button
+            id="btnModeRingkasHP"
+            type="button"
+            class="px-2.5 py-1 rounded text-[11px] font-bold text-white/80 hover:text-white transition cursor-pointer"
+            title="Mode daftar vertikal satu kolom"
+          >
+            Ringkas
+          </button>
+        </div>
+        <a
+          href="/"
+          class="hidden sm:inline-flex px-3 py-1 rounded-lg text-xs font-bold bg-white text-[#800000] hover:bg-stone-100 transition whitespace-nowrap"
+        >
+          Masuk Kasir
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. SCREEN SELECTOR TABS -->
+  <nav class="sticky top-14 sm:top-16 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200 py-0 shadow-xs">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-start lg:justify-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-0.5" id="screenTabsContainer">
+        <button
+          data-screen="screen1"
+          class="tab-btn px-3 sm:px-5 py-2.5 rounded-xl text-left border transition-all shrink-0 bg-[#800000] text-white border-[#800000] shadow-md scale-102 cursor-pointer"
+        >
+          <div class="text-xs sm:text-sm font-black">1. Dashboard Utama</div>
+        </button>
+
+        <button
+          data-screen="screen2"
+          class="tab-btn px-3 sm:px-5 py-2 rounded-xl text-left border transition-all shrink-0 bg-stone-50 text-slate-700 border-stone-200 hover:bg-stone-100 cursor-pointer"
+        >
+          <div class="text-xs sm:text-sm font-black">2. Form Transaksi Baru</div>
+        </button>
+
+        <button
+          data-screen="screen3"
+          class="tab-btn px-3 sm:px-5 py-2 rounded-xl text-left border transition-all shrink-0 bg-stone-50 text-slate-700 border-stone-200 hover:bg-stone-100 cursor-pointer"
+        >
+          <div class="text-xs sm:text-sm font-black">3. Struk & Cetak Thermal</div>
+        </button>
+
+        <button
+          data-screen="screen4"
+          class="tab-btn px-3 sm:px-5 py-2 rounded-xl text-left border transition-all shrink-0 bg-stone-50 text-slate-700 border-stone-200 hover:bg-stone-100 cursor-pointer"
+        >
+          <div class="text-xs sm:text-sm font-black">4. Status Pengerjaan (SLA)</div>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ======================================================================= -->
+  <!-- BAGIAN UTAMA: PETA TOMBOL DENGAN GARIS PENUNJUK AKTIF (100% AKTIF)      -->
+  <section id="view-mode-lines" class="block">
+    <main id="canvasScrollArea" class="py-3 sm:py-5 overflow-x-auto overflow-y-auto touch-pan-x touch-pan-y relative select-none">
+      <div id="zoomViewport" class="min-w-fit w-full flex justify-center">
+        <div
+          id="mainCanvasContainer"
+          class="relative inline-block text-left min-w-[760px] lg:min-w-0 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-1 overflow-visible min-h-[auto] origin-top transition-transform duration-100 ease-out"
+          style="transform: scale(1);"
+        >
+          <!-- SVG CONNECTOR LINES OVERLAY -->
+          <svg
+            id="svgOverlay"
+            class="absolute inset-0 w-full h-full pointer-events-none z-20"
+            style="width: 100%; height: 100%;"
+          >
+            <defs>
+              <filter id="line-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+
+              <marker id="arrowhead-normal" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <polygon points="0 0, 8 4, 0 8" fill="#800000" />
+              </marker>
+
+              <marker id="arrowhead-active" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+                <polygon points="0 0, 10 5, 0 10" fill="#f59e0b" />
+              </marker>
+            </defs>
+            <g id="svgLinesGroup"></g>
+          </svg>
+
+          <!-- 3-COLUMN DESKTOP / RESPONSIVE LAYOUT -->
+          <div class="grid grid-cols-12 gap-4 sm:gap-5 items-start">
+            <!-- LEFT COLUMN: CALLOUTS 1 - 4 -->
+            <div class="col-span-3 space-y-3 pt-1" id="leftCalloutsContainer"></div>
+
+            <!-- CENTER COLUMN: PHONE MOCKUP SCREEN -->
+            <div class="col-span-6 flex justify-center">
+              <div class="w-full max-w-[340px] sm:max-w-[365px] bg-slate-900 rounded-[44px] p-2.5 sm:p-3 shadow-2xl border-4 border-slate-700 relative" id="phoneMockupWrapper"></div>
+            </div>
+
+            <!-- RIGHT COLUMN: CALLOUTS 5 - 8 -->
+            <div class="col-span-3 space-y-3 pt-1" id="rightCalloutsContainer"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Floating Zoom Controller -->
+    <div
+      id="floatingZoomControl"
+      class="fixed bottom-4 right-3 sm:right-6 z-30 bg-slate-900/90 backdrop-blur-md text-white border border-slate-700/80 shadow-2xl rounded-full p-1.5 flex items-center gap-1.5 text-xs select-none animate-in fade-in duration-300"
+    >
+      <button
+        id="btnZoomOutFloat"
+        type="button"
+        title="Zoom Out (Perkecil Layar & Garis)"
+        class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white font-black text-base flex items-center justify-center transition cursor-pointer"
+      >
+        −
+      </button>
+      <button
+        id="btnZoomResetFloat"
+        type="button"
+        title="Reset Zoom ke 100%"
+        class="px-2.5 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-amber-300 font-mono font-black text-xs flex items-center justify-center transition cursor-pointer"
+      >
+        <span id="lblZoomFloat">100%</span>
+      </button>
+      <button
+        id="btnZoomInFloat"
+        type="button"
+        title="Zoom In (Perbesar Layar & Garis)"
+        class="w-8 h-8 rounded-full bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-base flex items-center justify-center transition cursor-pointer shadow-sm"
+      >
+        +
+      </button>
+    </div>
+  </section>
+
+  <!-- ======================================================================= -->
+  <!-- BAGIAN ALTERNATIF: MODE RINGKAS HP (DAFTAR VERTIKAL)                     -->
+  <!-- ======================================================================= -->
+  <section id="view-mode-hp" class="hidden px-2 py-2 max-w-xl mx-auto space-y-5">
+    <div class="bg-amber-50 border border-amber-300 rounded-2xl p-3 flex items-center gap-2.5 text-xs text-amber-900 shadow-2xs">
+      <span class="text-base shrink-0">👉</span>
+      <span>Ketuk nomor <strong>(1 - 8)</strong> pada gambar atau daftar di bawah untuk menyorot tombol.</span>
+    </div>
+
+    <div class="flex justify-center">
+      <div class="w-full max-w-[340px] bg-slate-900 rounded-[38px] p-2.5 shadow-xl border-4 border-slate-700 relative">
+        <div id="mobilePhoneScreenContainer" class="rounded-[28px] overflow-hidden relative"></div>
+      </div>
+    </div>
+
+    <div class="space-y-3 pt-2">
+      <div class="text-xs font-black uppercase text-stone-500 tracking-wider flex items-center justify-between">
+        <span>Daftar Keterangan Tombol</span>
+        <span class="text-[11px] text-[#800000] font-bold">1 - 8 Tombol</span>
+      </div>
+      <div id="mobileExplanationList" class="space-y-3"></div>
+    </div>
+  </section>
+
+  <!-- 4 LANGKAH PENGGUNAAN KASIR -->
+  <section class="py-10 bg-stone-200/70 border-t border-stone-300">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-2xl border border-stone-300 shadow-xs space-y-2">
+          <div class="w-8 h-8 rounded-full bg-[#800000] text-amber-300 font-black text-sm flex items-center justify-center">1</div>
+          <h4 class="font-bold text-sm text-slate-900">Pelanggan Datang</h4>
+          <p class="text-xs text-slate-600 leading-relaxed">Timbang pakaian kotor pelanggan. Klik tombol bulat merah (+) di tengah layar kasir.</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-stone-300 shadow-xs space-y-2">
+          <div class="w-8 h-8 rounded-full bg-[#800000] text-amber-300 font-black text-sm flex items-center justify-center">2</div>
+          <h4 class="font-bold text-sm text-slate-900">Input Kiloan / Satuan</h4>
+          <p class="text-xs text-slate-600 leading-relaxed">Ketik nama pelanggan, pilih paket layanan, masukkan berat (Kg), lalu centang jika sudah lunas atau bayar QRIS.</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-stone-300 shadow-xs space-y-2">
+          <div class="w-8 h-8 rounded-full bg-[#800000] text-amber-300 font-black text-sm flex items-center justify-center">3</div>
+          <h4 class="font-bold text-sm text-slate-900">Simpan & Cetak Struk</h4>
+          <p class="text-xs text-slate-600 leading-relaxed">Klik tombol Simpan Transaksi. Tekan "Cetak Bluetooth" untuk mencetak ke printer thermal 58mm atau bagikan via WhatsApp.</p>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-stone-300 shadow-xs space-y-2">
+          <div class="w-8 h-8 rounded-full bg-[#800000] text-amber-300 font-black text-sm flex items-center justify-center">4</div>
+          <h4 class="font-bold text-sm text-slate-900">Update & Serah Terima</h4>
+          <p class="text-xs text-slate-600 leading-relaxed">Pindahkan status dari Cuci ke Kering dan Setrika. Saat pakaian selesai, kirim notifikasi WA dan serahkan pakaian ke pelanggan.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOTTOM CALL TO ACTION -->
+  <section class="py-10 bg-[#800000] text-white text-center">
+    <div class="max-w-2xl mx-auto px-4 space-y-3">
+      <div class="font-black text-xl sm:text-2xl">
+        Buka Aplikasi Kasir Kafela's Laundry
+      </div>
+      <p class="text-rose-100 text-xs sm:text-sm">
+        Gunakan langsung di peramban web atau coba fitur kasir operasional lengkap.
+      </p>
+      <div class="pt-2 flex flex-wrap justify-center gap-3">
+        <a
+          href="/"
+          class="px-6 py-2.5 bg-white text-[#800000] font-black rounded-xl text-xs sm:text-sm shadow-md hover:bg-stone-100 transition"
+        >
+          Buka Kasir Sekarang
+        </a>
+        <a
+          href="/profil.html"
+          class="px-5 py-2.5 bg-black/25 text-white font-bold rounded-xl text-xs sm:text-sm border border-white/20 hover:bg-black/35 transition"
+        >
+          Lihat Web Profil
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-stone-900 text-stone-400 py-5 text-xs border-t border-stone-800 text-center">
+    <p>&copy; 2026 Kafela's Laundry — Sistem Kasir POS & Manajemen Operasional Laundry Indonesia.</p>
+  </footer>
+
+  <!-- SCRIPT UTAMA TUTORIAL DENGAN GARIS PENUNJUK -->
+  <script>
+    const dataTutorialHP = {
+      screen1: {
+        namaLayar: '1. Dashboard Utama',
+        keterangan: [
+   
+          {
+            nomor: 2,
+            id: 's1_search',
+            judul: 'Cari Transaksi',
+            catatan: 'Ketik nama pelanggan untuk langsung temukan cucian',
+            deskripsi: 'Pencarian instan berdasarkan nama pelanggan atau nomor nota transaksi.'
+          },
+          {
+            nomor: 3,
+            id: 's1_status',
+            judul: 'Status Transaksi',
+            catatan: 'Daftar nota aktif (misal: Yeyen 51.000) dengan indikator waktu pengerjaan',
+            deskripsi: 'Memudahkan kasir memantau cucian yang sedang dikerjakan dan status pembayaran.'
+          },
+          {
+            nomor: 4,
+            id: 's1_bottom_nav',
+            judul: 'Bilah Navigasi Bawah',
+            catatan: 'Bilah bawah untuk menu: Pengerjaan, Buku Kas, Atur Kas, & Laporan',
+            deskripsi: 'Navigasi satu jempol untuk berpindah antar fungsi utama operasional laundry.'
+          },
+       
+          {
+            nomor: 6,
+            id: 's1_badges',
+            judul: 'Indikator Status Pengerjaan',
+            catatan: 'Klik indikator untuk mengerjakan dan merubah status menjadi selesai',
+            deskripsi: 'Klik indikator jam merah untuk mulai mengerjakan cucian dan otomatis mengubah statusnya dari belum dikerjakan menjadi selesai (centang hijau).'
+          },
+          {
+            nomor: 7,
+            id: 's1_rekap_laba',
+            judul: 'Rekapitulasi Hari Ini',
+            catatan: 'Otomatis hitung omzet, belanja kasir, & laba bersih hari ini',
+            deskripsi: 'Owner dan kasir langsung mengetahui omzet harian bersih tanpa hitung manual.'
+          },
+          {
+            nomor: 8,
+            id: 's1_plus_btn',
+            judul: 'Tombol Tambah Transaksi (+)',
+            catatan: 'Tombol bulat merah di tengah untuk buat nota baru kilat',
+            deskripsi: 'Pintu utama kasir memasukkan pesanan cucian kiloan atau satuan dengan cepat saat pelanggan datang.'
+          }
+        ]
+      },
+      screen2: {
+        namaLayar: '2. Form Transaksi Baru',
+        keterangan: [
+          {
+            nomor: 1,
+            id: 's2_nama',
+            judul: 'Nama Pelanggan & Alamat',
+            catatan: 'Ketik nama pelanggan (misal: Iqbal). Alamat untuk antar jemput',
+            deskripsi: 'Sistem otomatis mengingat data pelanggan langganan yang pernah mencuci sebelumnya.'
+          },
+          {
+            nomor: 2,
+            id: 's2_layanan',
+            judul: 'Pilih Layanan & Tambah (+)',
+            catatan: 'Pilih paket di dropdown, isi berat (Kg/pcs), lalu klik tombol hijau (+)',
+            deskripsi: 'Bisa pilih Cuci Setrika, Setrika Saja, Cuci Kering, Jas, Bedcover, Karpet, dll.'
+          },
+          {
+            nomor: 3,
+            id: 's2_daftar_item',
+            judul: 'Daftar Item Multi-Layanan',
+            catatan: 'Bisa gabung Kiloan (14 Kg) + Satuan Jas (1 pcs) dalam 1 nota!',
+            deskripsi: 'Setiap item memiliki subtotal harga dan rincian pengerjaan yang transparan.'
+          },
+          {
+            nomor: 4,
+            id: 's2_catatan',
+            judul: 'Catatan Khusus Pakaian',
+            catatan: 'Tulis pesan: "Parfum mawar", "Baju putih pisah", "Kancing lepas"',
+            deskripsi: 'Catatan ini otomatis tercetak di struk pengerjaan karyawan agar tidak keliru di bagian cuci.'
+          },
+          {
+            nomor: 5,
+            id: 's2_total_tagihan',
+            judul: 'Total Tagihan Otomatis',
+            catatan: 'Total langsung dihitung otomatis Rp 99.000, bebas salah hitung kasir',
+            deskripsi: 'Menjumlahkan semua kiloan dan satuan secara presisi hingga digit terakhir.'
+          },
+          {
+            nomor: 6,
+            id: 's2_status_lunas',
+            judul: 'Centang Status Pelunasan',
+            catatan: 'Centang "Lunas" jika pelanggan langsung bayar di depan',
+            deskripsi: 'Jika tidak dicentang, nota otomatis berstatus Belum Lunas dan tercatat sebagai piutang.'
+          },
+          {
+            nomor: 7,
+            id: 's2_metode_qris',
+            judul: 'Metode Non-Tunai / QRIS',
+            catatan: 'Centang Non-Tunai untuk scan QRIS atau transfer bank BCA/Mandiri',
+            deskripsi: 'Memisahkan pembukuan uang fisik di laci dengan uang digital di rekening bank pemilik.'
+          },
+          {
+            nomor: 8,
+            id: 's2_btn_simpan',
+            judul: 'Tombol Simpan Transaksi',
+            catatan: 'Klik untuk simpan ke cloud & langsung buka lembar struk cetak!',
+            deskripsi: 'Proses penyimpanan kilat dengan sinkronisasi offline-first otomatis.'
+          }
+        ]
+      },
+      screen3: {
+        namaLayar: '3. Struk & Cetak Thermal',
+        keterangan: [
+          {
+            nomor: 1,
+            id: 's3_kop_toko',
+            judul: 'Kop Struk & Logo Resmi',
+            catatan: 'Logo Kafela, nama toko, nomor telepon, & alamat outlet tercetak di atas',
+            deskripsi: 'Membuat tampilan struk sangat profesional dan dipercaya oleh pelanggan.'
+          },
+          {
+            nomor: 2,
+            id: 's3_nomor_nota',
+            judul: 'Nomor Nota Transaksi',
+            catatan: 'Kode unik 261015/1 untuk penanda gantungan pakaian di rak cucian',
+            deskripsi: 'Memudahkan karyawan mencari pakaian saat pelanggan datang mengambil.'
+          },
+          {
+            nomor: 3,
+            id: 's3_waktu_terima',
+            judul: 'Jadwal Terima & Jadi',
+            catatan: 'Mencatat jam masuk cucian & tanggal estimasi siap diambil oleh pelanggan',
+            deskripsi: 'Menghindari komplain keterlambatan dan menjaga ketepatan waktu pengerjaan.'
+          },
+          {
+            nomor: 4,
+            id: 's3_btn_bluetooth',
+            judul: 'Tombol Cetak Bluetooth (58mm)',
+            catatan: 'Tombol merah utama: langsung cetak ke printer thermal 1 detik!',
+            deskripsi: 'Mendukung printer Bluetooth mini portabel (RPP02N, PT-210, Panda, VSC, dll) tanpa kabel.'
+          },
+          {
+            nomor: 5,
+            id: 's3_nama_status',
+            judul: 'Nama & Teks BELUM LUNAS',
+            catatan: 'Dicetak TEBAL: "BELUM LUNAS Rp. 7.000,-" agar kasir tidak lupa tagih',
+            deskripsi: 'Peringatan sangat kontras di tengah lembar nota agar uang kas selalu aman.'
+          },
+          {
+            nomor: 6,
+            id: 's3_rincian_biaya',
+            judul: 'Rincian Transaksi & Sisa Bayar',
+            catatan: 'Kalkulasi rinci tarif per kilo, total tagihan, dan sisa belum lunas',
+            deskripsi: 'Transparansi harga yang membuat pelanggan puas dan percaya dengan hitungan toko.'
+          },
+          {
+            nomor: 7,
+            id: 's3_aturan_toko',
+            judul: 'Peraturan Pengambilan Cucian',
+            catatan: 'Aturan: "Pakaian tidak diambil lebih dari 3 bulan akan disedekahkan"',
+            deskripsi: 'Melindungi pemilik laundry dari tumpukan pakaian mati yang ditinggalkan pemiliknya.'
+          },
+          {
+            nomor: 8,
+            id: 's3_btn_bagikan',
+            judul: 'Tombol Bagikan Struk WhatsApp',
+            catatan: 'Kirim nota digital langsung ke nomor WhatsApp pelanggan',
+            deskripsi: 'Hemat kertas thermal, ramah lingkungan, dan pelanggan selalu punya arsip digital di HP.'
+          }
+        ]
+      },
+      screen4: {
+        namaLayar: '4. Status Pengerjaan (SLA)',
+        keterangan: [
+          {
+            nomor: 1,
+            id: 's4_tab_status',
+            judul: 'Tab Status Pengerjaan',
+            catatan: 'Filter cepat: Antrean, Cuci, Kering, Setrika, Selesai, & Diambil',
+            deskripsi: 'Memantau posisi seluruh pakaian di setiap pos kerja laundry secara akurat.'
+          },
+          {
+            nomor: 2,
+            id: 's4_info_pelanggan',
+            judul: 'Kartu Cucian & Rincian Item',
+            catatan: 'Lihat daftar pakaian pelanggan, berat cucian, dan catatan parfum',
+            deskripsi: 'Informasi lengkap bagi karyawan bagian produksi tanpa perlu bolak-balik tanya kasir.'
+          },
+          {
+            nomor: 3,
+            id: 's4_estimasi_waktu',
+            judul: 'Indikator Batas Waktu (SLA)',
+            catatan: 'Tanda jam kuning/merah jika cucian mendekati batas waktu',
+            deskripsi: 'Mencegah pakaian terlambat dicuci atau disetrika sehingga pelanggan tetap puas.'
+          },
+          {
+            nomor: 4,
+            id: 's4_btn_next_step',
+            judul: 'Tombol Naikkan Status Cucian',
+            catatan: 'Klik tombol hijau untuk memindahkan: Cuci -> Kering -> Setrika',
+            deskripsi: 'Memperbarui progres cucian secara seketika dan tercatat di timeline pengerjaan.'
+          },
+          {
+            nomor: 5,
+            id: 's4_outlet_badge',
+            judul: 'Lencana Posisi Outlet',
+            catatan: 'Penanda lokasi cabang workshop cucian yang sedang aktif',
+            deskripsi: 'Mendukung multi-cabang sehingga pemilik dapat memfilter cucian berdasarkan outlet produksi.'
+          },
+          {
+            nomor: 6,
+            id: 's4_status_badge',
+            judul: 'Lencana Tahap Pengerjaan',
+            catatan: 'Label kuning terang menandakan pakaian sedang di mesin cuci',
+            deskripsi: 'Karyawan langsung mengenali pos cucian: Cuci (kuning), Kering (biru), Setrika (oranye), Siap (hijau).'
+          },
+          {
+            nomor: 7,
+            id: 's4_pilih_staff',
+            judul: 'Pilih Kasir / Staff Bertugas',
+            catatan: 'Catat siapa karyawan yang mencuci atau menyetrika cucian ini',
+            deskripsi: 'Menciptakan akuntabilitas kerja staf: siapa yang mengerjakan dan bertanggung jawab.'
+          },
+          {
+            nomor: 8,
+            id: 's4_btn_wa_selesai',
+            judul: 'Kirim WA "Cucian Siap Diambil"',
+            catatan: 'Otomatis kirim pesan WhatsApp ke pelanggan bahwa cucian siap',
+            deskripsi: 'Pelanggan segera datang mengambil dan melunasi pembayaran tanpa perlu ditelepon manual.'
+          }
+        ]
+      }
+    };
+
+    const screensHtml = {
+      screen1: `
+        <div class="rounded-[36px] overflow-hidden text-white flex flex-col shadow-inner relative bg-[#800000] select-none">
+          <img 
+            id="screen1_img"
+            src="/assets/aistudio/WhatsApp_Image_2026-10-20_at_14.28.49_a6804366.jpeg" 
+            alt="Layar Dashboard Kasir" 
+            class="w-full h-auto block select-none pointer-events-none rounded-[36px]"
+            loading="eager"
+          />
+          <div id="target_s1_arsip" class="target-node absolute cursor-pointer rounded-lg transition" style="top: 6.2%; left: 4.8%; width: 44px; height: 44px;">
+            <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">1</span>
+          </div>
+          <div id="target_s1_settings" class="target-node absolute cursor-pointer rounded-lg transition" style="top: 6.2%; right: 4.8%; width: 85px; height: 44px;">
+            <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">5</span>
+          </div>
+          <div id="target_s1_search" class="target-node absolute cursor-pointer rounded-xl transition" style="top: 17.5%; left: 4.8%; width: 44%; height: 38px;">
+            <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">2</span>
+          </div>
+          <div id="target_s1_badges" class="target-node absolute cursor-pointer rounded-xl transition" style="top: 17.5%; right: 4.8%; width: 44%; height: 38px;">
+            <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">6</span>
+          </div>
+          <div id="target_s1_status" class="target-node absolute cursor-pointer rounded-xl transition" style="top: 24.5%; left: 2.5%; width: 95%; height: 58px;">
+            <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">3</span>
+          </div>
+          <div id="target_s1_rekap_laba" class="target-node absolute cursor-pointer rounded-2xl transition" style="top: 64.0%; left: 2.5%; width: 95%; height: 21%;">
+            <span class="target-pin absolute -right-2.5 top-1/3 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">7</span>
+          </div>
+          <div id="target_s1_plus_btn" class="target-node absolute cursor-pointer rounded-full transition" style="top: 86.5%; left: 50%; transform: translateX(-50%); width: 54px; height: 54px;">
+            <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-amber-400 text-slate-950 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">8</span>
+          </div>
+          <div id="target_s1_bottom_nav" class="target-node absolute cursor-pointer rounded-b-[36px] transition" style="top: 88.5%; left: 2.5%; width: 95%; height: 50px;">
+            <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">4</span>
+          </div>
+        </div>
+      `,
+      screen2: `
+        <div class="rounded-[36px] bg-[#800000] overflow-hidden text-white flex flex-col min-h-[660px] shadow-inner select-none">
+          <div class="px-5 pt-3 pb-1 flex justify-between items-center text-[11px] font-semibold text-rose-100">
+            <span>12:32</span>
+            <span>⚡ 64%</span>
+          </div>
+          <div class="px-4 py-2.5 flex items-center justify-between border-b border-white/10">
+            <span class="font-bold text-sm tracking-tight text-white">Transaksi Baru</span>
+            <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded font-bold">Nota Baru</span>
+          </div>
+          <div class="flex-1 bg-stone-100 text-slate-800 p-3 space-y-2.5 font-sans overflow-y-auto text-xs">
+            <div id="target_s2_nama" class="target-node relative bg-white p-2.5 rounded-xl border border-stone-200 space-y-1 cursor-pointer">
+              <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">1</span>
+              <div class="grid grid-cols-2 gap-2">
+                <div><span class="block text-[10px] font-bold text-slate-600">Nama Pelanggan *</span><div class="p-1.5 bg-stone-50 border border-stone-300 rounded font-bold text-slate-900">Iqbal</div></div>
+                <div><span class="block text-[10px] font-bold text-slate-600">Alamat</span><div class="p-1.5 bg-stone-50 border border-stone-300 rounded text-slate-400 text-[10px] truncate">Jl. Mawar No. 12</div></div>
+              </div>
+            </div>
+            <div id="target_s2_layanan" class="target-node relative bg-white p-2.5 rounded-xl border border-stone-200 space-y-2 cursor-pointer">
+              <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">2</span>
+              <div class="grid grid-cols-12 gap-1.5 items-end">
+                <div class="col-span-7"><span class="block text-[10px] font-bold text-slate-600 mb-0.5">Layanan</span><div class="p-1.5 bg-stone-50 border border-stone-300 rounded font-bold text-[10px] text-slate-800 flex justify-between"><span>Cuci Jas / Blazer</span><span>▾</span></div></div>
+                <div class="col-span-3"><span class="block text-[10px] font-bold text-slate-600 mb-0.5">(pcs)</span><div class="p-1.5 bg-stone-50 border border-stone-300 rounded font-bold text-center">1</div></div>
+                <div class="col-span-2"><div class="py-1.5 bg-emerald-600 text-white rounded font-bold text-center">+</div></div>
+              </div>
+            </div>
+            <div id="target_s2_daftar_item" class="target-node relative bg-white p-2.5 rounded-xl border border-stone-200 space-y-1.5 cursor-pointer">
+              <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">3</span>
+              <div class="p-1.5 bg-stone-50 rounded-lg flex justify-between items-center text-[11px]"><div><div class="font-bold text-slate-900">Setrika Saja</div><div class="text-[9px] text-slate-500">1 Kg x Rp 4.000</div></div><span class="font-bold">Rp 4.000</span></div>
+              <div class="p-1.5 bg-stone-50 rounded-lg flex justify-between items-center text-[11px]"><div><div class="font-bold text-slate-900">Cuci Kering Saja</div><div class="text-[9px] text-slate-500">14 Kg x Rp 5.000</div></div><span class="font-bold">Rp 70.000</span></div>
+              <div class="p-1.5 bg-stone-50 rounded-lg flex justify-between items-center text-[11px]"><div><div class="font-bold text-slate-900">Cuci Jas / Blazer</div><div class="text-[9px] text-slate-500">1 pcs x Rp 25.000</div></div><span class="font-bold">Rp 25.000</span></div>
+            </div>
+            <div id="target_s2_catatan" class="target-node relative p-2 bg-white rounded-xl border border-stone-200 cursor-pointer">
+              <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">4</span>
+              <span class="block text-[9px] font-bold text-slate-500">Catatan Khusus Pakaian:</span>
+              <div class="text-[11px] font-bold text-[#800000] flex items-center gap-1.5 mt-0.5">
+                <span>🌸</span><span>Pakai parfum mawar</span>
+              </div>
+            </div>
+            <div class="bg-white p-2.5 rounded-xl border border-stone-200 space-y-2">
+              <div id="target_s2_total_tagihan" class="target-node relative flex justify-between items-center p-1.5 rounded-lg bg-stone-50 cursor-pointer">
+                <span class="text-xs font-bold text-slate-600">Total Tagihan:</span>
+                <span class="text-base font-black text-slate-900">Rp 99.000</span>
+                <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">5</span>
+              </div>
+              <div id="target_s2_status_lunas" class="target-node relative flex items-center gap-1.5 p-1.5 rounded-lg border border-stone-200 bg-stone-50 cursor-pointer">
+                <span class="text-emerald-600 font-bold">✓</span>
+                <span class="font-bold text-[11px]">Lunas</span>
+                <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">6</span>
+              </div>
+              <div id="target_s2_metode_qris" class="target-node relative flex items-center justify-between p-1.5 rounded-lg border border-stone-200 bg-stone-50 cursor-pointer">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span class="font-bold text-[11px]">Non-Tunai (QRIS)</span></div>
+                <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">7</span>
+              </div>
+            </div>
+            <div id="target_s2_btn_simpan" class="target-node relative w-full py-2.5 bg-[#800000] text-white font-bold rounded-xl text-center text-xs shadow-md cursor-pointer hover:bg-[#700000]">
+              <span>Simpan Transaksi</span>
+              <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-amber-400 text-slate-950 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">8</span>
+            </div>
+          </div>
+        </div>
+      `,
+      screen3: `
+        <div class="rounded-[36px] bg-[#800000] overflow-hidden text-white flex flex-col min-h-[660px] shadow-inner relative select-none">
+          <div class="px-5 pt-3 pb-1 flex justify-between items-center text-[11px] font-semibold text-rose-100">
+            <span>10:46</span>
+            <span>⚡ 74%</span>
+          </div>
+          <div class="px-4 py-2 flex justify-between items-center border-b border-white/10">
+            <div><div class="font-bold text-xs text-white">Struk Transaksi</div><div class="text-[10px] text-rose-200">Nota: 261015/1</div></div>
+            <span>✕</span>
+          </div>
+          <div class="flex-1 bg-stone-300 p-2.5 overflow-y-auto flex flex-col items-center">
+            <div class="w-full bg-white rounded-xl shadow p-3.5 text-slate-900 font-mono text-[10px] relative border border-stone-300 space-y-1">
+              <div id="target_s3_kop_toko" class="target-node relative text-center pb-1 p-1 rounded cursor-pointer">
+                <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">1</span>
+                <div class="w-7 h-7 rounded-full border border-stone-400 mx-auto flex items-center justify-center text-[7px] font-bold mb-0.5">kafelas</div>
+                <div class="font-bold text-xs">KAFELA'S LAUNDRY</div>
+                <div class="text-[9px] text-slate-500">0812-3456-7890 · Jl. Utama, Bandung</div>
+              </div>
+              <div class="border-t border-dashed border-stone-400 my-1"></div>
+              <div class="space-y-0.5 text-[9px]">
+                <div id="target_s3_nomor_nota" class="target-node relative flex justify-between p-0.5 rounded cursor-pointer">
+                  <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">2</span>
+                  <span>No. Nota</span><span class="font-bold">261015/1</span>
+                </div>
+                <div id="target_s3_waktu_terima" class="target-node relative space-y-0.5 p-0.5 rounded cursor-pointer">
+                  <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">3</span>
+                  <div class="flex justify-between"><span>Terima</span><span>Jumat, 16 Okt 06.44</span></div>
+                  <div class="flex justify-between"><span>Selesai</span><span>Senin, 19 Okt 2026</span></div>
+                </div>
+              </div>
+              <div class="border-t border-dashed border-stone-400 my-1"></div>
+              <div id="target_s3_nama_status" class="target-node relative text-center py-1 p-1 rounded cursor-pointer">
+                <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">5</span>
+                <div class="font-black text-sm tracking-wider">IQBAL</div>
+                <div class="font-black text-red-600 text-xs">BELUM LUNAS</div>
+                <div class="font-black text-red-600 text-xs">Rp. 7.000,-</div>
+              </div>
+              <div class="border-t border-dashed border-stone-400 my-1"></div>
+              <div id="target_s3_rincian_biaya" class="target-node relative text-[9px] space-y-0.5 p-1 rounded cursor-pointer">
+                <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">6</span>
+                <div class="font-bold">Cuci Setrika</div>
+                <div class="flex justify-between text-slate-600"><span>1 Kg x 7.000</span><span>= 7.000</span></div>
+                <div class="flex justify-between font-bold pt-1"><span>Total Transaksi</span><span>Rp 7.000</span></div>
+                <div class="flex justify-between font-bold text-red-600"><span>Sisa Pembayaran</span><span>Rp 7.000</span></div>
+              </div>
+              <div class="border-t border-dashed border-stone-400 my-1"></div>
+              <div id="target_s3_aturan_toko" class="target-node relative text-center text-[8px] text-slate-500 leading-tight p-1 rounded cursor-pointer">
+                <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">7</span>
+                Barang yang tidak diambil lebih dari 3 bulan akan disedekahkan.<br />Terima kasih atas kepercayaan Anda!
+              </div>
+            </div>
+          </div>
+          <div class="bg-white p-2.5 border-t border-stone-200 flex gap-2 font-sans">
+            <div id="target_s3_btn_bluetooth" class="target-node relative flex-1 py-2 bg-[#800000] text-white rounded-lg text-xs font-bold text-center flex items-center justify-center gap-1.5 shadow-sm cursor-pointer hover:bg-[#700000]">
+              <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">4</span>
+              <span>🖨️ Cetak Bluetooth</span>
+            </div>
+            <div id="target_s3_btn_bagikan" class="target-node relative px-3 py-2 bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-emerald-800">
+              <span>💬 Bagikan</span>
+              <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">8</span>
+            </div>
+          </div>
+        </div>
+      `,
+      screen4: `
+        <div class="rounded-[36px] bg-[#800000] overflow-hidden text-white flex flex-col min-h-[660px] shadow-inner select-none">
+          <div class="px-5 pt-3 pb-1 flex justify-between items-center text-[11px] font-semibold text-rose-100">
+            <span>14:15</span>
+            <span>⚡ 82%</span>
+          </div>
+          <div class="px-4 py-2.5 flex items-center justify-between border-b border-white/10">
+            <span class="font-bold text-sm tracking-tight text-white">Status Pengerjaan</span>
+            <div id="target_s4_outlet_badge" class="target-node relative text-[10px] bg-white/20 px-2 py-0.5 rounded font-bold cursor-pointer">
+              <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">5</span>
+              <span>Outlet Utama</span>
+            </div>
+          </div>
+          <div id="target_s4_tab_status" class="target-node relative bg-[#700000] p-1.5 flex gap-1 text-[10px] overflow-x-auto no-scrollbar cursor-pointer">
+            <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">1</span>
+            <span class="bg-white/15 px-2 py-1 rounded">Semua (2)</span>
+            <span class="bg-white text-[#800000] font-black px-2 py-1 rounded shadow-xs">Cuci (1)</span>
+            <span class="bg-white/15 px-2 py-1 rounded">Kering (0)</span>
+            <span class="bg-white/15 px-2 py-1 rounded">Setrika (1)</span>
+          </div>
+          <div class="flex-1 bg-stone-100 text-slate-800 p-3 space-y-2.5 font-sans overflow-y-auto text-xs">
+            <div class="bg-white p-3 rounded-2xl border border-stone-200 shadow-2xs space-y-2">
+              <div id="target_s4_info_pelanggan" class="target-node relative p-2 rounded-xl border border-stone-100 bg-stone-50 cursor-pointer">
+                <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">2</span>
+                <div class="flex justify-between items-start">
+                  <div>
+                    <div class="font-black text-sm text-slate-900">Iqbal (261015/1)</div>
+                    <div class="text-[10px] text-slate-500">Cuci Setrika · 1 Kg</div>
+                    <div class="text-[9px] text-[#800000] font-bold">Catatan: Parfum Mawar</div>
+                  </div>
+                  <div id="target_s4_status_badge" class="target-node relative bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px] border border-amber-300">
+                    <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">6</span>
+                    <span>Sedang Dicuci</span>
+                  </div>
+                </div>
+              </div>
+
+              <div id="target_s4_estimasi_waktu" class="target-node relative flex items-center justify-between p-1.5 bg-stone-50 rounded-lg border border-stone-200 cursor-pointer">
+                <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">3</span>
+                <div class="flex items-center gap-1.5 text-[10px] text-slate-600">
+                  <span>⏱️</span><span>Target: Senin, 19 Okt 2026 (Sisa 2 Hari)</span>
+                </div>
+              </div>
+
+              <div id="target_s4_pilih_staff" class="target-node relative flex items-center justify-between p-1.5 bg-stone-50 rounded-lg border border-stone-200 cursor-pointer">
+                <span class="text-[10px] font-bold text-slate-600">Staff Penanggung Jawab:</span>
+                <span class="text-[10px] font-black bg-stone-200 px-2 py-0.5 rounded text-slate-800">Siti Rahma ▾</span>
+                <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">7</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <div id="target_s4_btn_next_step" class="target-node relative py-2 bg-emerald-700 text-white rounded-lg text-center font-bold text-[11px] shadow-sm flex items-center justify-center gap-1 cursor-pointer hover:bg-emerald-800">
+                  <span class="target-pin absolute -left-2.5 top-1/2 -translate-y-1/2 bg-[#800000] text-amber-300 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">4</span>
+                  <span>✓ Lanjut: Kering</span>
+                </div>
+                <div id="target_s4_btn_wa_selesai" class="target-node relative py-2 bg-[#800000] text-white rounded-lg text-center font-bold text-[11px] shadow-sm flex items-center justify-center gap-1 cursor-pointer hover:bg-[#700000]">
+                  <span>💬 WA Pelanggan</span>
+                  <span class="target-pin absolute -right-2.5 top-1/2 -translate-y-1/2 bg-amber-400 text-slate-950 border-2 border-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">8</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    let currentScreen = 'screen1';
+    let highlightedId = null;
+    let showAllLines = true;
+    let animatedLines = true;
+    let currentLineStyle = 'bezier';
+    let currentZoom = 1.0;
+
+    const viewLines = document.getElementById('view-mode-lines');
+    const viewHP = document.getElementById('view-mode-hp');
+    const leftCol = document.getElementById('leftCalloutsContainer');
+    const rightCol = document.getElementById('rightCalloutsContainer');
+    const phoneWrapper = document.getElementById('phoneMockupWrapper');
+    const svgLinesGroup = document.getElementById('svgLinesGroup');
+    const container = document.getElementById('mainCanvasContainer');
+    const canvasScrollArea = document.getElementById('canvasScrollArea');
+    const zoomViewport = document.getElementById('zoomViewport');
+    const floatingZoom = document.getElementById('floatingZoomControl');
+    const lblZoomFloat = document.getElementById('lblZoomFloat');
+
+    const mobileScreenBox = document.getElementById('mobilePhoneScreenContainer');
+    const mobileListBox = document.getElementById('mobileExplanationList');
+
+    function renderMainLinesView(screenKey) {
+      const data = dataTutorialHP[screenKey];
+      if (!data) return;
+
+      phoneWrapper.innerHTML = screensHtml[screenKey];
+      leftCol.innerHTML = '';
+      rightCol.innerHTML = '';
+
+      data.keterangan.forEach(item => {
+        const isLeft = item.nomor <= 4;
+        const card = document.createElement('div');
+        card.id = `card_${item.id}`;
+        card.className = `card-item relative p-3 rounded-2xl border transition-all duration-200 cursor-pointer bg-stone-50 border-stone-200 hover:border-[#800000]/40 hover:bg-stone-100/90 shadow-2xs`;
+
+        const anchorDot = isLeft
+          ? `<div class="anchor-dot flex absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-xs bg-[#800000] items-center justify-center z-30 transition-colors"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div>`
+          : `<div class="anchor-dot flex absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-xs bg-[#800000] items-center justify-center z-30 transition-colors"><div class="w-1.5 h-1.5 rounded-full bg-white"></div></div>`;
+card.innerHTML = `
+          ${anchorDot}
+          <div class="flex items-center gap-2">
+            <span class="badge-num w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-[#800000] text-white shadow-xs transition-colors">
+              ${item.nomor}
+            </span>
+            <h4 class="font-bold text-xs text-slate-900 leading-tight flex-1">${item.judul}</h4>
+          </div>
+          <div class="pl-0 mt-1 space-y-1">
+            <div class="font-hand text-base text-[#800000] font-bold leading-snug">"${item.catatan}"</div>
+            <p class="text-[10px] text-slate-600 leading-relaxed">${item.deskripsi}</p>
+          </div>
+        `;
+
+        card.addEventListener('mouseenter', () => setHighlight(item.id));
+        card.addEventListener('mouseleave', () => setHighlight(null));
+        card.addEventListener('click', () => setHighlight(highlightedId === item.id ? null : item.id));
+
+        if (isLeft) {
+          leftCol.appendChild(card);
+        } else {
+          rightCol.appendChild(card);
+        }
+      });
+
+      data.keterangan.forEach(item => {
+        const target = phoneWrapper.querySelector(`#target_${item.id}`);
+        if (target) {
+          target.addEventListener('mouseenter', () => setHighlight(item.id));
+          target.addEventListener('mouseleave', () => setHighlight(null));
+          target.addEventListener('click', () => setHighlight(highlightedId === item.id ? null : item.id));
+        }
+      });
+
+      const img = phoneWrapper.querySelector('img');
+      if (img) {
+        if (img.complete) {
+          updateAllLines();
+        } else {
+          img.addEventListener('load', () => {
+            updateAllLines();
+            setTimeout(updateAllLines, 80);
+          });
+        }
+      }
+
+      requestAnimationFrame(() => {
+        updateAllLines();
+        setTimeout(updateAllLines, 50);
+        setTimeout(updateAllLines, 150);
+        setTimeout(updateAllLines, 350);
+      });
+    }
+
+    function renderMobileCompactView(screenKey) {
+      const data = dataTutorialHP[screenKey];
+      if (!data) return;
+
+      mobileScreenBox.innerHTML = screensHtml[screenKey];
+      mobileListBox.innerHTML = '';
+
+      data.keterangan.forEach(item => {
+        const card = document.createElement('div');
+        card.id = `mobile_card_${item.id}`;
+        card.className = `p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer bg-white border-stone-200 shadow-2xs hover:border-[#800000]/40`;
+        card.innerHTML = `
+          <div class="flex items-start gap-2.5">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 bg-[#800000] text-white shadow-xs">
+              ${item.nomor}
+            </span>
+            <div class="flex-1">
+              <h4 class="font-bold text-xs text-slate-900 leading-tight">${item.judul}</h4>
+              <div class="font-hand text-base text-[#800000] font-bold leading-snug mt-0.5">"${item.catatan}"</div>
+            </div>
+          </div>
+          <p class="text-[10px] text-slate-600 mt-1.5 leading-relaxed pl-8">${item.deskripsi}</p>
+        `;
+
+        card.addEventListener('click', () => {
+          highlightedId = item.id;
+          data.keterangan.forEach(k => {
+            const c = document.getElementById(`mobile_card_${k.id}`);
+            const t = mobileScreenBox.querySelector(`#target_${k.id}`);
+            const active = k.id === item.id;
+            if (c) c.className = active ? 'p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer bg-amber-50 border-amber-400 shadow-md ring-2 ring-amber-300' : 'p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer bg-white border-stone-200 shadow-2xs hover:border-[#800000]/40';
+            if (t) {
+              if (active) t.classList.add('ring-4', 'ring-amber-300', 'scale-105');
+              else t.classList.remove('ring-4', 'ring-amber-300', 'scale-105');
+            }
+          });
+        });
+
+        mobileListBox.appendChild(card);
+      });
+
+      data.keterangan.forEach(item => {
+        const target = mobileScreenBox.querySelector(`#target_${item.id}`);
+        if (target) {
+          target.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const targetCard = document.getElementById(`mobile_card_${item.id}`);
+            if (targetCard) {
+              targetCard.click();
+              targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          });
+        }
+      });
+    }
+
+    function setHighlight(id) {
+      highlightedId = id;
+      const data = dataTutorialHP[currentScreen];
+      if (!data) return;
+
+      data.keterangan.forEach(item => {
+        const card = document.getElementById(`card_${item.id}`);
+        const target = phoneWrapper.querySelector(`#target_${item.id}`);
+        const isH = highlightedId === item.id;
+
+        if (card) {
+          const dot = card.querySelector('.anchor-dot');
+          const num = card.querySelector('.badge-num');
+
+          if (isH) {
+            card.classList.add('bg-amber-50', 'border-amber-400', 'shadow-lg', 'scale-102', 'ring-2', 'ring-amber-300');
+            card.classList.remove('bg-stone-50', 'border-stone-200');
+            if (dot) {
+              dot.classList.remove('bg-[#800000]');
+              dot.classList.add('bg-amber-500', 'ring-4', 'ring-amber-300/60');
+            }
+            if (num) {
+              num.classList.remove('bg-[#800000]', 'text-white');
+              num.classList.add('bg-amber-500', 'text-slate-950', 'ring-2', 'ring-amber-300');
+            }
+          } else {
+            card.classList.remove('bg-amber-50', 'border-amber-400', 'shadow-lg', 'scale-102', 'ring-2', 'ring-amber-300');
+            card.classList.add('bg-stone-50', 'border-stone-200');
+            if (dot) {
+              dot.classList.remove('bg-amber-500', 'ring-4', 'ring-amber-300/60');
+              dot.classList.add('bg-[#800000]');
+            }
+            if (num) {
+              num.classList.remove('bg-amber-500', 'text-slate-950', 'ring-2', 'ring-amber-300');
+              num.classList.add('bg-[#800000]', 'text-white');
+            }
+          }
+        }
+
+        if (target) {
+          const pin = target.querySelector('.target-pin');
+          if (isH) {
+            target.classList.add('ring-4', 'ring-amber-300', 'scale-105');
+            if (pin) {
+              pin.classList.remove('bg-[#800000]', 'text-amber-300');
+              pin.classList.add('bg-amber-400', 'text-slate-950', 'ring-2', 'ring-amber-200');
+            }
+          } else {
+            target.classList.remove('ring-4', 'ring-amber-300', 'scale-105');
+            if (pin && pin.textContent !== '8') {
+              pin.classList.add('bg-[#800000]', 'text-amber-300');
+              pin.classList.remove('bg-amber-400', 'text-slate-950', 'ring-2', 'ring-amber-200');
+            }
+          }
+        }
+      });
+
+      updateAllLines();
+    }
+
+    function getPathString(x1, y1, x2, y2, isLeft) {
+      if (currentLineStyle === 'straight') {
+        return `M ${x1} ${y1} L ${x2} ${y2}`;
+      }
+      if (currentLineStyle === 'orthogonal') {
+        const midX = (x1 + x2) / 2;
+        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+      }
+      const dx = Math.abs(x2 - x1);
+      const curvature = Math.min(dx * 0.48, 140);
+      const cp1x = isLeft ? x1 + curvature : x1 - curvature;
+      const cp1y = y1;
+      const cp2x = isLeft ? x2 - curvature : x2 + curvature;
+      const cp2y = y2;
+      return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+    }
+
+    function updateAllLines() {
+      if (!container) return;
+      const cRect = container.getBoundingClientRect();
+      if (cRect.width === 0 || cRect.height === 0) return;
+
+      const data = dataTutorialHP[currentScreen];
+      if (!data) return;
+
+      let svgHtml = '';
+
+      data.keterangan.forEach(item => {
+        const card = document.getElementById(`card_${item.id}`);
+        const target = phoneWrapper ? phoneWrapper.querySelector(`#target_${item.id}`) : null;
+        if (!card || !target) return;
+
+        const isH = highlightedId === item.id;
+        const isVisible = showAllLines || isH;
+        if (!isVisible) return;
+
+        const isLeft = item.nomor <= 4;
+        const anchor = card.querySelector('.anchor-dot') || card;
+        const aRect = anchor.getBoundingClientRect();
+        const pin = target.querySelector('.target-pin') || target;
+        const pRect = pin.getBoundingClientRect();
+
+        if (pRect.width === 0 && pRect.height === 0) return;
+
+        const z = currentZoom || 1.0;
+        const x1 = (aRect.left + aRect.width / 2 - cRect.left) / z;
+        const y1 = (aRect.top + aRect.height / 2 - cRect.top) / z;
+        const x2 = (pRect.left + pRect.width / 2 - cRect.left) / z;
+        const y2 = (pRect.top + pRect.height / 2 - cRect.top) / z;
+
+        const pathData = getPathString(x1, y1, x2, y2, isLeft);
+        const strokeColor = isH ? '#f59e0b' : '#800000';
+        const strokeWidth = isH ? 3.5 : 2;
+        const opacity = isH ? 1 : showAllLines && highlightedId ? 0.35 : 0.8;
+        const dash = animatedLines ? (isH ? '6,4' : '4,3') : undefined;
+        const marker = isH ? 'url(#arrowhead-active)' : 'url(#arrowhead-normal)';
+
+        svgHtml += `
+          <g class="transition-all duration-200">
+            <path d="${pathData}" fill="none" stroke="#ffffff" stroke-width="${strokeWidth + 4}" stroke-opacity="0.9" />
+            <path
+              d="${pathData}"
+              fill="none"
+              stroke="${strokeColor}"
+              stroke-width="${strokeWidth}"
+              stroke-opacity="${opacity}"
+              ${dash ? `stroke-dasharray="${dash}"` : ''}
+              marker-end="${marker}"
+              ${isH ? 'filter="url(#line-glow)"' : ''}
+            />
+            <circle cx="${x1}" cy="${y1}" r="${isH ? 5.5 : 4}" fill="${strokeColor}" stroke="#ffffff" stroke-width="2" />
+            <circle cx="${x2}" cy="${y2}" r="${isH ? 6.5 : 4.5}" fill="${isH ? '#f59e0b' : '#800000'}" stroke="#ffffff" stroke-width="2" />
+          </g>
+        `;
+      });
+
+      svgLinesGroup.innerHTML = svgHtml;
+    }
+
+    function renderScreen(screenKey) {
+      currentScreen = screenKey;
+      highlightedId = null;
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const isCurrent = btn.getAttribute('data-screen') === screenKey;
+        if (isCurrent) {
+          btn.className = 'tab-btn px-3 sm:px-5 py-2 rounded-xl text-left border transition-all shrink-0 bg-[#800000] text-white border-[#800000] shadow-md scale-102 cursor-pointer';
+          const sub = btn.querySelector('div:last-child');
+          if (sub) sub.className = 'text-[10px] text-amber-200';
+        } else {
+          btn.className = 'tab-btn px-3 sm:px-5 py-2 rounded-xl text-left border transition-all shrink-0 bg-stone-50 text-slate-700 border-stone-200 hover:bg-stone-100 cursor-pointer';
+          const sub = btn.querySelector('div:last-child');
+          if (sub) sub.className = 'text-[10px] text-slate-500';
+        }
+      });
+
+      renderMainLinesView(screenKey);
+      renderMobileCompactView(screenKey);
+      applyZoom(currentZoom);
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        renderScreen(btn.getAttribute('data-screen'));
+      });
+    });
+
+    const btnModePeta = document.getElementById('btnModePetaGaris');
+    const btnModeHP = document.getElementById('btnModeRingkasHP');
+
+    btnModePeta.addEventListener('click', () => {
+      viewLines.classList.remove('hidden');
+      viewLines.classList.add('block');
+      viewHP.classList.remove('block');
+      viewHP.classList.add('hidden');
+      if (floatingZoom) floatingZoom.classList.remove('hidden');
+
+      btnModePeta.className = 'px-2.5 py-1 rounded text-[11px] font-bold bg-amber-400 text-slate-950 transition cursor-pointer';
+      btnModeHP.className = 'px-2.5 py-1 rounded text-[11px] font-bold text-white/80 hover:text-white transition cursor-pointer';
+      setTimeout(updateAllLines, 50);
+    });
+
+    btnModeHP.addEventListener('click', () => {
+      viewLines.classList.remove('block');
+      viewLines.classList.add('hidden');
+      viewHP.classList.remove('hidden');
+      viewHP.classList.add('block');
+      if (floatingZoom) floatingZoom.classList.add('hidden');
+
+      btnModeHP.className = 'px-2.5 py-1 rounded text-[11px] font-bold bg-amber-400 text-slate-950 transition cursor-pointer';
+      btnModePeta.className = 'px-2.5 py-1 rounded text-[11px] font-bold text-white/80 hover:text-white transition cursor-pointer';
+    });
+
+    function applyZoom(newZoom) {
+      currentZoom = Math.min(Math.max(parseFloat(newZoom.toFixed(2)), 0.5), 1.8);
+      if (container) {
+        container.style.transform = `scale(${currentZoom})`;
+        container.style.transformOrigin = 'top center';
+      }
+      if (zoomViewport) {
+        const baseHeight = 940;
+        zoomViewport.style.height = `${baseHeight * currentZoom + 30}px`;
+      }
+      const zoomText = Math.round(currentZoom * 100) + '%';
+      if (lblZoomFloat) lblZoomFloat.textContent = zoomText;
+
+      updateAllLines();
+    }
+
+    const btnZoomInFloat = document.getElementById('btnZoomInFloat');
+    const btnZoomOutFloat = document.getElementById('btnZoomOutFloat');
+    const btnZoomResetFloat = document.getElementById('btnZoomResetFloat');
+
+    if (btnZoomInFloat) btnZoomInFloat.addEventListener('click', () => applyZoom(currentZoom + 0.15));
+    if (btnZoomOutFloat) btnZoomOutFloat.addEventListener('click', () => applyZoom(currentZoom - 0.15));
+    if (btnZoomResetFloat) btnZoomResetFloat.addEventListener('click', () => applyZoom(1.0));
+
+    let touchStartDist = 0;
+    let touchStartZoom = 1;
+
+    if (canvasScrollArea) {
+      canvasScrollArea.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          touchStartDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          touchStartZoom = currentZoom;
+        }
+      }, { passive: true });
+
+      canvasScrollArea.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && touchStartDist > 0) {
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const ratio = dist / touchStartDist;
+          applyZoom(touchStartZoom * ratio);
+        }
+      }, { passive: true });
+
+      canvasScrollArea.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+          touchStartDist = 0;
+        }
+      }, { passive: true });
+
+      canvasScrollArea.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          const delta = e.deltaY < 0 ? 0.08 : -0.08;
+          applyZoom(currentZoom + delta);
+        }
+      }, { passive: false });
+    }
+
+    window.addEventListener('resize', updateAllLines);
+    if (typeof ResizeObserver !== 'undefined' && container) {
+      const ro = new ResizeObserver(() => updateAllLines());
+      ro.observe(container);
+    }
+
+    renderScreen('screen1');
+  </script>
+
+</body>
+</html>

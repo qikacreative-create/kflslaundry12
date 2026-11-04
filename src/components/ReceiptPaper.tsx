@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Transaksi, SettingsData } from '../types';
-import { formatDateIndo, formatNumberOnly } from '../utils/formatters';
+import { formatDateIndo } from '../utils/formatters';
 import { getCachedThermalLogoDataUrl, getThermalLogoDataUrl } from '../utils/logoHelper';
 
 export interface ReceiptPaperProps {
@@ -23,7 +23,7 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
       laundryName,
       laundryPhone,
       laundryAddress,
-      id,
+      id = 'printable-receipt-area',
       isCaptureNode = false,
       className = '',
       onLogoReady,
@@ -94,13 +94,22 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
       };
     }, [transaksi.id, hasLogoEnabled, settings.logoPath, settings.useLogo]);
 
-    const headerTitle = laundryName || settings.headerStruk || 'Kafelas Laundry';
-    const headerAddress = laundryAddress || settings.address || '';
-    const headerPhone = laundryPhone || settings.phoneNumber || '';
+    // Data Mapping
+    const namaBrand = laundryName || settings.headerStruk || "Kafelas Laundry";
+    const teleponBrand = laundryPhone || settings.phoneNumber || '';
+    const alamatBrand = laundryAddress || settings.address || '';
+    const namaAdmin = transaksi.dikerjakanOleh || 'Kasir';
+    const namaKlien = transaksi.namaPelanggan || 'Pelanggan';
+    const noInvoice = transaksi.nomorTransaksi || '001';
 
+    // Logika Keuangan Nota
+    const totalTarif = transaksi.totalHarga;
+    const diskon = transaksi.diskon || 0;
+    const totalTagihan = Math.max(0, totalTarif);
     const isLunas = transaksi.statusPembayaran === 'Lunas';
-    const sisaBayar = isLunas ? 0 : Math.max(0, transaksi.totalHarga - (transaksi.jumlahDp || 0));
-    const statusFinal = isLunas || sisaBayar <= 0 ? 'LUNAS' : 'BELUM LUNAS';
+    const dpDibayar = transaksi.jumlahDp || 0;
+    const sisaPelunasan = isLunas ? 0 : Math.max(0, totalTagihan - dpDibayar);
+    const nominalDibayar = isLunas ? totalTagihan : dpDibayar;
 
     const items = Array.isArray(transaksi.items) && transaksi.items.length > 0 ? transaksi.items : [];
 
@@ -110,180 +119,174 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
         id={id}
         data-receipt-capture={isCaptureNode ? 'true' : undefined}
         data-trx-id={transaksi.id}
-        className={`w-[320px] bg-white p-5 border border-slate-200 relative overflow-hidden text-slate-900 font-mono text-[11px] leading-tight select-none ${
-          isCaptureNode ? '' : 'shadow-md'
-        } ${className}`}
-        style={{
-          fontFamily: '"Courier New", Courier, monospace',
-        }}
+        className={`w-[320px] sm:w-[350px] bg-white text-slate-900 p-6 rounded-xl shadow-2xl border border-slate-200 relative font-mono text-[11px] leading-tight select-none ${className}`}
+        style={{ fontFamily: '"Courier New", Courier, monospace' }}
       >
+        {/* A. WATERMARK DIAGONAL BERULANG (Gaya Fintech / DANA) */}
         <div
-          className="absolute inset-0 pointer-events-none overflow-hidden z-0 flex flex-wrap content-start select-none"
-          style={{
-            opacity: 0.04,
-            transform: 'rotate(-20deg) scale(1.3)',
-            transformOrigin: 'center center',
-          }}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden opacity-[0.04] z-0 flex flex-wrap content-start"
+          style={{ transform: 'rotate(-20deg) scale(1.3)', transformOrigin: 'center center' }}
         >
-          {Array.from({ length: 48 }).map((_, i) => (
-            <div key={i} className="text-[12px] font-black text-slate-900 m-3 whitespace-nowrap">
-              {headerTitle.toUpperCase()} •
+          {Array.from({ length: 36 }).map((_, i) => (
+            <div key={i} className="text-[11px] font-black text-slate-950 m-2.5 whitespace-nowrap">
+              {namaBrand.toUpperCase()} •
             </div>
           ))}
         </div>
 
+        {/* B. KONTEN STRUK */}
         <div className="relative z-10 space-y-2">
-          {hasLogoEnabled && thermalLogoSrc && (
-            <div className="flex justify-center mb-1">
+          {/* Header Toko */}
+          <div className="flex items-center gap-3">
+            {hasLogoEnabled && thermalLogoSrc && (
               <img
                 ref={logoImgRef}
                 src={thermalLogoSrc}
-                alt="Logo Toko"
+                alt="Logo"
                 referrerPolicy="no-referrer"
-                onLoad={() => {
-                  requestAnimationFrame(() => onLogoReady?.());
-                }}
-                onError={() => {
-                  requestAnimationFrame(() => onLogoReady?.());
-                }}
-                className={`w-auto object-contain ${
-                  settings.logoSize === 'kecil'
-                    ? 'h-7 max-w-[70px]'
-                    : settings.logoSize === 'besar'
-                    ? 'h-13 max-w-[130px]'
-                    : 'h-9 max-w-[95px]'
-                }`}
+                onLoad={() => requestAnimationFrame(() => onLogoReady?.())}
+                onError={() => requestAnimationFrame(() => onLogoReady?.())}
+                className="h-10 w-auto max-w-[80px] object-contain shrink-0"
               />
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xs font-black uppercase text-slate-950 truncate">{namaBrand}</h2>
+              {teleponBrand && <p className="text-[9px] text-slate-600 truncate">{teleponBrand}</p>}
+              {alamatBrand && <p className="text-[9px] text-slate-600 line-clamp-2">{alamatBrand}</p>}
             </div>
-          )}
-
-          <div className="text-center space-y-0.5">
-            <h2 className="text-sm font-bold uppercase tracking-wide">{headerTitle}</h2>
-            {headerPhone && <p className="text-[10px]">{headerPhone}</p>}
-            {headerAddress && <p className="text-[9px] text-slate-700">{headerAddress}</p>}
           </div>
 
-          <div className="border-b border-dashed border-slate-800 my-2"></div>
+          <div className="border-b border-dashed border-slate-700 my-2" />
 
-          <div className="space-y-0.5 text-[10px]">
+          {/* Metadata Transaksi */}
+          <div className="space-y-1 text-[10px]">
             <div className="flex justify-between">
-              <span>No.</span>
-              <span className="font-bold">{transaksi.nomorTransaksi || '-'}</span>
+              <span className="text-slate-600">No. Invoice</span>
+              <span className="font-bold">#{noInvoice}</span>
             </div>
             <div className="flex justify-between">
-              <span>Terima</span>
+              <span className="text-slate-600">Kasir</span>
+              <span>{namaAdmin}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Pelanggan</span>
+              <span className="font-bold">{namaKlien}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Tanggal</span>
               <span>{formatDateIndo(transaksi.tanggalMasuk, true)}</span>
             </div>
             {transaksi.tanggalSelesai && (
-              <div className="flex justify-between">
-                <span>Selesai</span>
-                <span className="font-semibold">{formatDateIndo(transaksi.tanggalSelesai)}</span>
+              <div className="flex justify-between text-rose-700 font-semibold">
+                <span>Est. Selesai</span>
+                <span>{formatDateIndo(transaksi.tanggalSelesai)}</span>
               </div>
             )}
-            <div className="flex justify-between pt-1">
-              <span>Yth. Bapak/Ibu</span>
-            </div>
           </div>
 
-          <div className="border-b border-dashed border-slate-800 my-1"></div>
+          <div className="border-b border-dashed border-slate-700 my-2" />
 
+          {/* Badge Status Lunas / Belum Lunas */}
           <div className="text-center py-1">
-            <div className="text-base font-extrabold uppercase">{transaksi.namaPelanggan}</div>
-            {transaksi.alamat && <div className="text-[10px] text-slate-600">({transaksi.alamat})</div>}
             <div
-              className={`text-xs font-black tracking-widest mt-1 ${
-                statusFinal === 'LUNAS' ? 'text-emerald-700' : 'text-red-700'
+              className={`text-xs font-black tracking-widest py-1 px-3 rounded inline-block ${
+                isLunas
+                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                  : 'bg-rose-100 text-rose-900 border border-rose-300'
               }`}
             >
-              {statusFinal}
+              {isLunas ? '✓ LUNAS' : 'BELUM LUNAS'}
             </div>
-            {sisaBayar > 0 && (
-              <div className="text-sm font-black text-red-700 mt-0.5">
-                Rp.{formatNumberOnly(sisaBayar)},-
+            {!isLunas && (
+              <div className="text-xs font-black text-rose-700 mt-1">
+                Sisa: Rp {sisaPelunasan.toLocaleString('id-ID')}
               </div>
             )}
           </div>
 
-          <div className="border-b border-dashed border-slate-800 my-1"></div>
+          <div className="border-b border-dashed border-slate-700 my-2" />
 
-          <div className="space-y-1.5 py-1">
+          {/* Rincian Tagihan */}
+          <div className="space-y-1 text-[11px]">
             {items.length > 0 ? (
-              items.map((item, idx) => (
+              items.map((it, idx) => (
                 <div key={idx} className="space-y-0.5">
-                  <div className="font-bold text-[11px]">{item?.namaLayanan || 'Layanan'}</div>
-                  <div className="flex justify-between text-[10px]">
-                    <span>
-                      {item?.berat || 0} {item?.satuan || ''} x{' '}
-                      {formatNumberOnly(item?.hargaPerKg || item?.hargaSatuan || 0)}
+                  <div className="flex justify-between">
+                    <span className="font-bold truncate pr-2">{it.namaLayanan || 'Layanan'}</span>
+                    <span className="shrink-0 font-bold">
+                      Rp {(it.subtotal || 0).toLocaleString('id-ID')}
                     </span>
-                    <span>= {formatNumberOnly(item?.subtotal || 0)}</span>
+                  </div>
+                  <div className="text-[9px] text-slate-500">
+                    {it.berat || 0} {it.satuan || ''} x Rp{' '}
+                    {(it.hargaPerKg || it.hargaSatuan || 0).toLocaleString('id-ID')}
                   </div>
                 </div>
               ))
             ) : (
-              <div className="space-y-0.5">
-                <div className="font-bold text-[11px]">Cucian Laundry</div>
-                <div className="flex justify-between text-[10px]">
-                  <span>1 Paket</span>
-                  <span>= {formatNumberOnly(transaksi.totalHarga)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="border-b border-dashed border-slate-800 my-1"></div>
-
-          <div className="space-y-1 text-[11px]">
-            {transaksi.diskon && transaksi.diskon > 0 ? (
-              <div className="flex justify-between text-rose-700">
-                <span>Potongan Diskon</span>
-                <span>-Rp {formatNumberOnly(transaksi.diskon)}</span>
-              </div>
-            ) : null}
-            <div className="flex justify-between font-bold">
-              <span>Total Transaksi</span>
-              <span>Rp {formatNumberOnly(transaksi.totalHarga)}</span>
-            </div>
-            {transaksi.jumlahDp > 0 && (
               <div className="flex justify-between">
-                <span>Pembayaran Awal</span>
-                <span>Rp {formatNumberOnly(transaksi.jumlahDp)}</span>
+                <span>Cucian Laundry</span>
+                <span>Rp {totalTagihan.toLocaleString('id-ID')}</span>
               </div>
             )}
-            {sisaBayar > 0 ? (
-              <div className="flex justify-between font-bold text-red-700">
-                <span>Sisa Pembayaran</span>
-                <span>Rp {formatNumberOnly(sisaBayar)}</span>
-              </div>
-            ) : isLunas && transaksi.jumlahDp > 0 && transaksi.jumlahDp < transaksi.totalHarga ? (
-              <div className="flex justify-between font-bold text-emerald-700">
-                <span>Pelunasan</span>
-                <span>Rp {formatNumberOnly(transaksi.totalHarga - transaksi.jumlahDp)}</span>
-              </div>
-            ) : null}
-          </div>
 
-          <div className="border-b border-dashed border-slate-800 my-1"></div>
-
-          <div className="text-center space-y-1 text-[10px] pt-1">
-            {transaksi.metodePembayaran && (
-              <div>
-                Metode: {transaksi.metodePembayaran}
-                {transaksi.metodePembayaranDetail ? ` (${transaksi.metodePembayaranDetail})` : ''}
+            {diskon > 0 && (
+              <div className="flex justify-between text-rose-700 text-[10px] pt-1">
+                <span>Diskon</span>
+                <span>-Rp {diskon.toLocaleString('id-ID')}</span>
               </div>
             )}
-            {transaksi.catatan && (
-              <div className="font-bold italic text-slate-800">Catatan: {transaksi.catatan}</div>
-            )}
-            {settings.footerStruk && (
-              <div className="text-[10px] text-slate-600 leading-tight pt-1">{settings.footerStruk}</div>
-            )}
-            {settings.chattyFooter && (
-              <div className="text-[10px] font-semibold italic text-slate-800 pt-1">
-                {settings.chattyFooter}
+
+            <div className="border-t border-slate-300 pt-1 flex justify-between font-bold">
+              <span>Total Tagihan</span>
+              <span>Rp {totalTagihan.toLocaleString('id-ID')}</span>
+            </div>
+
+            <div className="flex justify-between text-slate-700">
+              <span>Dibayar</span>
+              <span>Rp {nominalDibayar.toLocaleString('id-ID')}</span>
+            </div>
+
+            {!isLunas && sisaPelunasan > 0 && (
+              <div className="flex justify-between font-bold text-rose-700">
+                <span>Sisa Tagihan</span>
+                <span>Rp {sisaPelunasan.toLocaleString('id-ID')}</span>
               </div>
             )}
           </div>
+
+          <div className="border-b border-dashed border-slate-700 my-2" />
+
+          {/* Info Pembayaran & Rekening */}
+          {transaksi.metodePembayaran && (
+            <p className="text-[9px] text-center text-slate-600">
+              Metode: {transaksi.metodePembayaran}
+              {transaksi.metodePembayaranDetail ? ` (${transaksi.metodePembayaranDetail})` : ''}
+            </p>
+          )}
+
+          {transaksi.catatan && (
+            <p className="text-[9px] text-center text-slate-700 italic">
+              Catatan: {transaksi.catatan}
+            </p>
+          )}
+
+          {settings.footerStruk && (
+            <p className="text-[9px] text-center text-slate-600 leading-tight">
+              {settings.footerStruk}
+            </p>
+          )}
+
+          {settings.chattyFooter && (
+            <p className="text-[9px] text-center font-bold text-slate-800">
+              {settings.chattyFooter}
+            </p>
+          )}
+
+          <p className="text-center text-[8px] text-slate-500 italic mt-2">
+            Simpan struk ini sebagai bukti transaksi yang sah.
+          </p>
         </div>
       </div>
     );

@@ -1,0 +1,6 @@
+{
+  "summary":  "Rencana penguncian keamanan penuh (Server-Authoritative Billing & Firestore Rules) untuk melindungi field subscriptionType, subscriptionEndDate, dan walletBalance dari manipulasi sisi client, migrasi seluruh transaksi potong saldo & tambah cabang ke endpoint backend terproteksi, serta penyediaan Panel Aktivasi Transfer Manual khusus Super Admin.",
+  "updatedAt":  "2026-10-29T10:19:22.531335005Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

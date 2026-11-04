@@ -825,6 +825,41 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
     };
   }, []);
 
+  // Jembatan onBackPressed khusus untuk APK Android (MainActivity.kt)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    (window as any).__kembaliKeDashboard = () => {
+      const state = navStateRef.current;
+      if (
+        state.hasReceiptModalTrx ||
+        state.isUpgradeModalOpen ||
+        state.isAturKasOpen ||
+        state.isSwitchBranchOpen ||
+        state.isApkModalOpen ||
+        state.isLimitModalOpen ||
+        state.isExpiredModalOpen ||
+        state.isGlobalPaymentOpen ||
+        state.hasTrxForAssignStaff
+      ) {
+        navigateBack();
+        return 'handled';
+      }
+      if (navHistoryRef.current.length > 0) {
+        navigateBack();
+        return 'handled';
+      }
+      if (state.activeView !== 'dashboard' && state.activeView !== 'splash' && state.activeView !== 'auth') {
+        navigateBack();
+        return 'handled';
+      }
+      return 'at_dashboard';
+    };
+
+    return () => {
+      delete (window as any).__kembaliKeDashboard;
+    };
+  }, [navigateBack]);
+
   // Setiap kali berganti halaman ke depan (selain splash & auth), dorong riwayat navigasi browser
   useEffect(() => {
     if (typeof window !== 'undefined' && activeView !== 'splash' && activeView !== 'auth') {

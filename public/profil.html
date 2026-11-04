@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Profil Kafelas Laundry — Aplikasi Kasir &amp; Pembukuan Laundry</title>
+  <meta name="description" content="Aplikasi kasir POS, struk Bluetooth thermal 58mm, nota gambar WhatsApp, dan pembukuan operasional laundry." />
+  <meta property="og:title" content="Kafelas Laundry — Kasir &amp; Pembukuan Laundry" />
+  <meta property="og:description" content="Catat transaksi, cetak struk Bluetooth 58mm, kirim nota gambar ke WhatsApp, dan pantau kas harian otomatis." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/pwa-512x512.png" />
+  <meta name="theme-color" content="#800000" />
+
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              600: '#800000',
+              700: '#680000',
+              800: '#520000',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- AOS Library CSS -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .balance-text {
+      text-wrap: balance;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900 antialiased selection:bg-[#800000] selection:text-white pb-24 sm:pb-0">
+
+  <!-- TOP NAVIGATION BAR (Mobile Optimized) -->
+  <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80" data-aos="fade-down" data-aos-duration="600">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <!-- Brand Lockup -->
+      <a href="/" class="flex items-center gap-2.5 shrink-0">
+        <div class="w-9 h-9 rounded-xl border border-slate-200 bg-white p-1 flex items-center justify-center overflow-hidden shadow-2xs">
+          <img
+            src="/logo-kafela.png"
+            alt="Logo Kafelas Laundry"
+            class="w-full h-full object-contain"
+          />
+        </div>
+        <div>
+          <span class="font-extrabold text-sm sm:text-[15px] tracking-tight text-slate-900 block leading-tight">
+            Kafelas Laundry
+          </span>
+          <span class="text-[10px] text-slate-500 font-medium block">
+            Profil &amp; Panduan Resmi
+          </span>
+        </div>
+      </a>
+
+      <!-- Navigation & Action -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+          <a href="#fitur" class="hover:text-slate-900 transition-colors">Fitur</a>
+          <a href="#alur" class="hover:text-slate-900 transition-colors">Alur</a>
+          <a href="#paket" class="hover:text-slate-900 transition-colors">Paket</a>
+          <a href="/tutorial.html" class="hover:text-[#800000] transition-colors">Tutorial</a>
+        </nav>
+        <a
+          href="/tutorial.html"
+          class="sm:hidden px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl active:bg-slate-200 transition"
+        >
+          Tutorial
+        </a>
+        <a
+          href="https://kflslaundry.web.app"
+          class="h-10 px-4 sm:px-5 rounded-xl bg-[#800000] hover:bg-[#680000] text-white text-xs sm:text-sm font-bold inline-flex items-center justify-center whitespace-nowrap transition shadow-sm active:scale-95"
+        >
+          Masuk Aplikasi
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. HERO SECTION -->
+    <section class="pt-8 pb-12 sm:pt-20 sm:pb-24 bg-white">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+        <!-- Left Copy -->
+        <div class="lg:col-span-7 space-y-5 text-center lg:text-left" data-aos="fade-right" data-aos-duration="800">
+          <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 border border-red-200/60 text-[#800000] text-xs font-bold">
+            <span class="w-2 h-2 rounded-full bg-[#800000] animate-pulse"></span>
+            <span>Sistem Operasional &amp; Kasir Laundry Modern</span>
+          </div>
+
+          <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15] balance-text">
+            Kasir dan pembukuan laundry yang rapi, cepat, praktis.
+          </h1>
+
+          <p class="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
+            Catat cucian kiloan atau satuan, cetak struk Bluetooth thermal 58mm, kirim nota gambar ke WhatsApp, dan pantau kas harian otomatis.
+          </p>
+
+          <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
+            <a
+              href="https://kflslaundry.web.app"
+              class="w-full sm:w-auto h-12 px-6 rounded-2xl bg-[#800000] hover:bg-[#680000] text-white text-sm font-bold inline-flex items-center justify-center gap-2 transition shadow-md active:scale-95"
+            >
+              <span>Buka Aplikasi Kasir POS</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </a>
+            <a
+              href="/tutorial.html"
+              class="w-full sm:w-auto h-12 px-6 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-sm font-bold inline-flex items-center justify-center transition active:scale-95"
+            >
+              Lihat Tutorial Kasir
+            </a>
+          </div>
+
+          <div class="pt-6 border-t border-slate-100 grid grid-cols-3 gap-2 max-w-md mx-auto lg:mx-0 text-left">
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="text-xs sm:text-sm font-black text-slate-900 tabular-nums">58mm</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Struk Bluetooth</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="text-xs sm:text-sm font-black text-slate-900">1 Ketuk</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Nota Gambar WA</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="text-xs sm:text-sm font-black text-slate-900">Offline-First</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Aman &amp; Sinkron</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Real App Preview -->
+        <div class="lg:col-span-5 flex justify-center" data-aos="fade-left" data-aos-duration="800">
+          <div class="w-full max-w-[240px] sm:max-w-[280px] rounded-[38px] border-4 border-slate-800 bg-slate-950 p-2.5 shadow-xl">
+            <div class="rounded-[30px] overflow-hidden bg-slate-100 aspect-[9/19.5]">
+              <img
+                src="/dashboard_tutorial_screen1.jpg"
+                alt="Tampilan Aplikasi Kasir Kafelas Laundry"
+                class="w-full h-full object-cover object-top"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. CORE FEATURES (BENTO GRID) -->
+    <section id="fitur" class="py-14 sm:py-20 bg-slate-50/80 border-y border-slate-200/80">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="max-w-xl space-y-2 mb-8 sm:mb-12 text-center sm:text-left" data-aos="fade-up" data-aos-duration="600">
+          <span class="text-xs font-bold uppercase tracking-widest text-[#800000] px-3 py-1 rounded-full bg-red-50 border border-red-200 inline-block">
+            Fitur Unggulan
+          </span>
+          <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Empat modul inti untuk harian outlet.
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div class="md:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-3 shadow-2xs" data-aos="fade-up" data-aos-duration="600">
+            <div class="font-mono text-xs font-black text-[#800000] bg-red-50 w-8 h-8 rounded-lg flex items-center justify-center">01</div>
+            <h3 class="text-base sm:text-lg font-black text-slate-900">Kasir &amp; Cetak Struk 58mm</h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Input berat desimal atau jumlah satuan, pilih pembayaran lunas atau DP, lalu cetak langsung ke printer thermal Bluetooth.
+            </p>
+          </div>
+
+          <div class="md:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-3 shadow-2xs" data-aos="fade-up" data-aos-duration="700">
+            <div class="font-mono text-xs font-black text-[#800000] bg-red-50 w-8 h-8 rounded-lg flex items-center justify-center">02</div>
+            <h3 class="text-base sm:text-lg font-black text-slate-900">Struk Gambar WhatsApp</h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Kirim gambar struk persis cetakan kertas langsung ke WhatsApp pelanggan tanpa ketik ulang.
+            </p>
+          </div>
+
+          <div class="md:col-span-5 bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-3 shadow-2xs" data-aos="fade-up" data-aos-duration="600">
+            <div class="font-mono text-xs font-black text-[#800000] bg-red-50 w-8 h-8 rounded-lg flex items-center justify-center">03</div>
+            <h3 class="text-base sm:text-lg font-black text-slate-900">Status Cucian &amp; Staf</h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Pantau cucian dari diterima, diproses, selesai, hingga diambil beserta pencatatan beban kerja staf.
+            </p>
+          </div>
+
+          <div class="md:col-span-7 bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 space-y-3 shadow-2xs" data-aos="fade-up" data-aos-duration="700">
+            <div class="font-mono text-xs font-black text-[#800000] bg-red-50 w-8 h-8 rounded-lg flex items-center justify-center">04</div>
+            <h3 class="text-base sm:text-lg font-black text-slate-900">Buku Kas &amp; Laporan</h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Uang masuk dan biaya operasional terekap otomatis. Unduh laporan kapan saja dalam format Excel (.xlsx) atau PDF A4.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. WORKFLOW -->
+    <section id="alur" class="py-14 sm:py-20 bg-white">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-12" data-aos="fade-up" data-aos-duration="600">
+          <div class="space-y-2 text-center sm:text-left">
+            <span class="text-xs font-bold uppercase tracking-widest text-[#800000] px-3 py-1 rounded-full bg-red-50 border border-red-200 inline-block">
+              Alur Kerja
+            </span>
+            <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Tiga langkah sederhana di meja kasir.
+            </h2>
+          </div>
+          <a
+            href="/tutorial.html"
+            class="text-xs font-bold text-[#800000] hover:underline inline-flex items-center justify-center gap-1 whitespace-nowrap bg-red-50 sm:bg-transparent p-3 sm:p-0 rounded-xl"
+          >
+            <span>Buka panduan interaktif lengkap</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-200/80">
+          <div class="bg-slate-50/80 border border-slate-200/60 p-6 rounded-2xl space-y-3" data-aos="fade-up" data-aos-duration="600">
+            <div class="font-mono text-xs font-black text-slate-400">LANGKAH 01</div>
+            <h3 class="text-base font-black text-slate-900">Terima Cucian</h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Pilih pelanggan dan layanan, lalu masukkan berat timbangan atau jumlah pakaian.
+            </p>
+          </div>
+
+          <div class="bg-slate-50/80 border border-slate-200/60 p-6 rounded-2xl space-y-3" data-aos="fade-up" data-aos-duration="700">
+            <div class="font-mono text-xs font-black text-slate-400">LANGKAH 02</div>
+            <h3 class="text-base font-black text-slate-900">Cetak atau Kirim WA</h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Simpan transaksi untuk mencetak struk 58mm atau membagikan gambar nota ke WhatsApp.
+            </p>
+          </div>
+
+          <div class="bg-slate-50/80 border border-slate-200/60 p-6 rounded-2xl space-y-3" data-aos="fade-up" data-aos-duration="800">
+            <div class="font-mono text-xs font-black text-slate-400">LANGKAH 03</div>
+            <h3 class="text-base font-black text-slate-900">Serahkan &amp; Rekap</h3>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Tandai diambil saat pelunasan. Pemasukan dan saldo kas laci langsung terhitung rapi.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PRICING -->
+    <section id="paket" class="py-14 sm:py-20 bg-slate-50/80 border-t border-slate-200/80">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6">
+        <div class="max-w-xl space-y-2 mb-8 sm:mb-12 text-center sm:text-left" data-aos="fade-up" data-aos-duration="600">
+          <span class="text-xs font-bold uppercase tracking-widest text-[#800000] px-3 py-1 rounded-full bg-red-50 border border-red-200 inline-block">
+            Pilihan Paket
+          </span>
+          <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Mulai gratis, upgrade sesuai kebutuhan.
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto md:mx-0">
+          <!-- Newcomer -->
+          <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 flex flex-col justify-between gap-6 shadow-2xs" data-aos="fade-right" data-aos-duration="700">
+            <div class="space-y-4">
+              <div class="flex items-baseline justify-between gap-2">
+                <h3 class="text-base sm:text-lg font-black text-slate-900">Newcomer</h3>
+                <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">Gratis</span>
+              </div>
+
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums">Rp 0</span>
+                <span class="text-xs text-slate-500">/ selamanya</span>
+              </div>
+
+              <ul class="space-y-3 text-xs sm:text-sm text-slate-600 pt-4 border-t border-slate-100">
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>50 nota transaksi per bulan</span>
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>50 data pelanggan &amp; 5 layanan</span>
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>1 akun Owner untuk 1 outlet</span>
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>Cetak Bluetooth &amp; nota WhatsApp</span>
+                </li>
+              </ul>
+            </div>
+
+            <a
+              href="https://kflslaundry.web.app"
+              class="w-full h-11 rounded-2xl border-2 border-slate-200 hover:border-slate-300 text-slate-800 text-xs sm:text-sm font-bold inline-flex items-center justify-center transition active:scale-95"
+            >
+              Mulai Gratis Sekarang
+            </a>
+          </div>
+
+          <!-- Premium -->
+          <div class="bg-white border-2 border-[#800000] rounded-3xl p-6 sm:p-8 flex flex-col justify-between gap-6 shadow-xl relative overflow-hidden" data-aos="fade-left" data-aos-duration="700">
+            <div class="absolute top-0 right-0 bg-[#800000] text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-bl-2xl">
+              Paling Populer
+            </div>
+
+            <div class="space-y-4">
+              <div class="flex items-baseline justify-between gap-2">
+                <h3 class="text-base sm:text-lg font-black text-slate-900">Premium</h3>
+                <span class="text-xs font-bold text-[#800000] bg-red-50 px-2.5 py-1 rounded-lg">Tanpa Batas</span>
+              </div>
+
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-3xl sm:text-4xl font-black text-slate-900 tabular-nums">Rp 27.000</span>
+                <span class="text-xs text-slate-500">/ 30 hari</span>
+              </div>
+
+              <ul class="space-y-3 text-xs sm:text-sm text-slate-700 pt-4 border-t border-slate-100">
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>Transaksi, pelanggan &amp; layanan tanpa batas</span>
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>Akun Kasir terpisah (sinkron beda HP)</span>
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>Penugasan &amp; hitung beban kerja staf</span>
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span>Ekspor laporan Excel (.xlsx) &amp; PDF A4</span>
+                </li>
+                <li class="flex items-center gap-2.5">
+                  <span class="text-[#800000] font-bold">&check;</span>
+                  <span class="tabular-nums">Tambah cabang opsional Rp 25.000/cabang</span>
+                </li>
+              </ul>
+            </div>
+
+            <a
+              href="https://kflslaundry.web.app"
+              class="w-full h-11 rounded-2xl bg-[#800000] hover:bg-[#680000] text-white text-xs sm:text-sm font-bold inline-flex items-center justify-center transition shadow-md active:scale-95"
+            >
+              Aktifkan Paket Premium
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. CTA BLOCK -->
+    <section class="bg-white border-t border-slate-200/80 py-12 sm:py-16" data-aos="fade-up" data-aos-duration="600">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 text-center sm:text-left flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div class="space-y-1">
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Siap merapikan kasir laundry Anda?
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-500">
+            Mulai pencatatan profesional hari ini atau hubungi admin kami untuk pertanyaan.
+          </p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <a
+            href="https://kflslaundry.web.app"
+            class="w-full sm:w-auto h-12 px-6 rounded-2xl bg-[#800000] hover:bg-[#680000] text-white text-xs sm:text-sm font-bold inline-flex items-center justify-center transition shadow-md active:scale-95"
+          >
+            Masuk / Buka Kasir POS
+          </a>
+          <a
+            href="https://api.whatsapp.com/send?phone=6285659781477&text=Halo%20Admin%20Kafelas%20Laundry%2C%20saya%20ingin%20bertanya%20tentang%20aplikasi%20kasir%20laundry."
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-full sm:w-auto h-12 px-6 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold inline-flex items-center justify-center transition active:scale-95"
+          >
+            WhatsApp Admin
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MOBILE STICKY BOTTOM ACTION BAR (Super fast 1-tap access on HP) -->
+  <div class="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 shadow-2xl flex items-center gap-3">
+    <a
+      href="/tutorial.html"
+      class="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition"
+    >
+      <span>Tutorial</span>
+    </a>
+    <a
+      href="https://kflslaundry.web.app"
+      class="flex-[2] h-11 rounded-xl bg-[#800000] hover:bg-[#680000] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition"
+    >
+      <span>Buka Kasir POS</span>
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+      </svg>
+    </a>
+  </div>
+
+  <!-- QUIET FOOTER -->
+  <footer class="bg-white border-t border-slate-100 py-8 mb-12 sm:mb-0">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 text-center sm:text-left">
+      <div>
+        &copy; 2026 Kafelas Laundry &middot; Sistem Kasir &amp; Operasional Laundry
+      </div>
+      <div class="flex items-center justify-center gap-6 font-medium text-slate-600">
+        <a href="https://kflslaundry.web.app" class="hover:text-slate-900 transition">Aplikasi Kasir</a>
+        <a href="/tutorial.html" class="hover:text-slate-900 transition">Tutorial</a>
+        <a
+          href="https://api.whatsapp.com/send?phone=6285659781477&text=Halo%20Admin%20Kafelas%20Laundry"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:text-slate-900 transition"
+        >
+          Kontak
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- AOS Library JS -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      AOS.init({
+        duration: 800,
+        once: true,
+        offset: 50,
+      });
+    });
+  </script>
+
+</body>
+</html>

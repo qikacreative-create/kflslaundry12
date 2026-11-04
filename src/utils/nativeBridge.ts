@@ -78,6 +78,8 @@ declare global {
       ) => void;
 
       keluarAplikasi?: () => void;
+      resetPrinter?: () => void;
+      gantiPrinter?: () => void;
     };
     WebAppInterface?: any;
   }
@@ -125,7 +127,7 @@ export async function printViaAndroidBluetooth(
   laundryAddress?: string,
   laundryPhone?: string,
   preloadedLogoBase64?: string
-): Promise<boolean> {
+): Promise<{ success: boolean; message: string }> {
   // Pastikan pemanggilan window.MesinPrint dibungkus dalam kondisi yang aman
   if (typeof window !== 'undefined' && window.MesinPrint) {
     try {
@@ -144,6 +146,16 @@ export async function printViaAndroidBluetooth(
         laundryPhone
       );
 
+      // 1. Prioritaskan cetakTeksStruk (Metode 1 Rekomendasi Utama di WebPrintInterface Kotlin)
+      if (typeof window.MesinPrint.cetakTeksStruk === 'function') {
+        try {
+          window.MesinPrint.cetakTeksStruk(fullReceiptText);
+        } catch {
+          window.MesinPrint.cetakTeksStruk(fullReceiptText, logoBase64);
+        }
+        return { success: true, message: 'Struk berhasil dicetak lewat socket Bluetooth APK!' };
+      }
+
       // 2. Jika APK mendukung interface print(...) langsung
       if (typeof window.MesinPrint.print === 'function') {
         try {
@@ -151,7 +163,7 @@ export async function printViaAndroidBluetooth(
         } catch {
           window.MesinPrint.print(fullReceiptText);
         }
-        return true;
+        return { success: true, message: 'Struk berhasil dikirim ke printer Bluetooth APK!' };
       }
 
       // 3. Jika APK menggunakan prosesCetakBluetooth (metode 22 parameter)
@@ -221,34 +233,27 @@ export async function printViaAndroidBluetooth(
           logoBase64,
           ''
         );
-        return true;
+        return { success: true, message: 'Struk berhasil dikirim ke printer Bluetooth via prosesCetakBluetooth!' };
       }
 
-      // 4. Jika APK menyediakan cetakTeksStruk
-      if (typeof window.MesinPrint.cetakTeksStruk === 'function') {
-        try {
-          window.MesinPrint.cetakTeksStruk(fullReceiptText, logoBase64);
-        } catch {
-          window.MesinPrint.cetakTeksStruk(fullReceiptText);
-        }
-        return true;
-      }
 
-      return false;
+      return {
+        success: false,
+        message: 'Layanan antarmuka MesinPrint di APK tidak memiliki metode cetak yang dikenali.',
+      };
     } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       console.error('Gagal mencetak lewat MesinPrint Android:', error);
-      // Fallback ke window.print() jika runtime error pada native bridge
-      if (typeof window !== 'undefined') {
-        window.print();
-      }
-      return false;
+      return {
+        success: false,
+        message: `Gagal mencetak via Bluetooth APK: ${errMsg}`,
+      };
     }
   } else {
-    // Fallback ke window.print() ketika window.MesinPrint tidak tersedia
-    if (typeof window !== 'undefined') {
-      window.print();
-    }
-    return false;
+    return {
+      success: false,
+      message: 'Antarmuka cetak printer native APK Android (window.MesinPrint) tidak terdeteksi.',
+    };
   }
 }
 
@@ -258,13 +263,22 @@ let cachedBluetoothDevice: any = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cachedCharacteristic: any = null;
 
-const STANDARD_PRINTER_SERVICES = [
-  '000018f0-0000-1000-8000-00805f9b34fb', // Standard Thermal Printer Service
+export const KNOWN_PRINTER_SERVICES = [
+  '000018f0-0000-1000-8000-00805f9b34fb',
   'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
   '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
   '0000ffe0-0000-1000-8000-00805f9b34fb',
-  '0000af30-0000-1000-8000-00805f9b34fb',
+  '0000ae30-0000-1000-8000-00805f9b34fb',
+];
+
+export const KNOWN_PRINTER_CHARACTERISTICS = [
+  '00002af1-0000-1000-8000-00805f9b34fb',
+  'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f',
   '49535343-8841-43f4-a8d4-ecbe34729bb3',
+  '0000ff02-0000-1000-8000-00805f9b34fb',
+  '0000ffe1-0000-1000-8000-00805f9b34fb',
+  '0000ae01-0000-1000-8000-00805f9b34fb',
 ];
 
 /**
@@ -298,28 +312,135 @@ export function disconnectBluetoothPrinter(): void {
 
 /**
  * Mencari characteristic yang mendukung operasi penulisan (write)
+ * menggunakan daftar universal KNOWN_PRINTER_SERVICES & KNOWN_PRINTER_CHARACTERISTICS
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function findWriteCharacteristic(device: any): Promise<any> {
   const server = await device.gatt.connect();
-  const services = await server.getPrimaryServices();
-  if (!services || services.length === 0) {
-    throw new Error('Tidak ditemukan service Bluetooth printer.');
-  }
 
-  for (const service of services) {
+  let targetChar: any = null;
+
+  // A. Cari berdasarkan kombinasi service dan characteristic yang umum pada printer kasir
+  for (const sUuid of KNOWN_PRINTER_SERVICES) {
+    if (targetChar) break;
     try {
-      const chars = await service.getCharacteristics();
-      for (const char of chars) {
-        if (char.properties.write || char.properties.writeWithoutResponse) {
-          return char;
+      const service = await server.getPrimaryService(sUuid);
+      for (const cUuid of KNOWN_PRINTER_CHARACTERISTICS) {
+        try {
+          const ch = await service.getCharacteristic(cUuid);
+          if (ch) {
+            targetChar = ch;
+            break;
+          }
+        } catch {}
+      }
+
+      // Jika belum ketemu ID khusus, periksa setiap karakteristik di service ini
+      if (!targetChar) {
+        const chars = await service.getCharacteristics();
+        for (const ch of chars) {
+          if (ch.properties.write || ch.properties.writeWithoutResponse) {
+            targetChar = ch;
+            break;
+          }
         }
       }
-    } catch {
-      // lanjut cari di service lain
-    }
+    } catch {}
   }
-  throw new Error('Karakteristik cetak printer tidak ditemukan.');
+
+  // B. Fallback: Cari di seluruh services yang disediakan perangkat
+  if (!targetChar) {
+    try {
+      const services = await server.getPrimaryServices();
+      for (const service of services) {
+        if (targetChar) break;
+        try {
+          const chars = await service.getCharacteristics();
+          for (const ch of chars) {
+            if (ch.properties.write || ch.properties.writeWithoutResponse) {
+              targetChar = ch;
+              break;
+            }
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  if (!targetChar) {
+    throw new Error('Karakteristik cetak printer tidak ditemukan.');
+  }
+
+  return targetChar;
+}
+
+/**
+ * Formatter Format ESC/POS (Maksimal 32 Karakter per Baris)
+ */
+export function buildEscPosReceipt(
+  transaksi: Transaksi,
+  settings: SettingsData,
+  laundryName?: string,
+  laundryAddress?: string,
+  laundryPhone?: string
+): string {
+  const line = '--------------------------------\n';
+  const doubleLine = '================================\n';
+
+  const namaBrand = laundryName || settings.headerStruk || "Kafelas Laundry";
+  const noInvoice = transaksi.nomorTransaksi || 'INV-001';
+  const namaAdmin = transaksi.dikerjakanOleh || 'Kasir';
+  const namaKlien = transaksi.namaPelanggan || 'Pelanggan';
+  const isLunas = transaksi.statusPembayaran === 'Lunas';
+  const diskon = transaksi.diskon || 0;
+  const totalTarif = transaksi.totalHarga;
+  const dpDibayar = transaksi.jumlahDp || 0;
+  const sisa = isLunas ? 0 : Math.max(0, totalTarif - dpDibayar);
+  const nominalDibayar = isLunas ? totalTarif : dpDibayar;
+
+  const items = Array.isArray(transaksi.items) && transaksi.items.length > 0 ? transaksi.items : [];
+  let itemsSection = '';
+  if (items.length > 0) {
+    itemsSection = items
+      .map((it) => {
+        const itemLine = `${(it.namaLayanan || 'Layanan').slice(0, 32)}\n`;
+        const subLine = `  ${it.berat || 0} ${it.satuan || ''} x ${it.hargaPerKg || it.hargaSatuan || 0} = Rp ${(it.subtotal || 0).toLocaleString('id-ID')}\n`;
+        return itemLine + subLine;
+      })
+      .join('');
+  } else {
+    itemsSection = `Layanan : Cucian Laundry\nTotal   : Rp ${totalTarif.toLocaleString('id-ID')}\n`;
+  }
+
+  return [
+    '\x1B\x40',         // 1. Reset/Init printer
+    '\x1B\x61\x01',     // 2. Rata Tengah (Center)
+    '\x1B\x21\x10',     // 3. Teks Besar (Double Height)
+    `${namaBrand.toUpperCase()}\n`,
+    '\x1B\x21\x00',     // 4. Kembali Teks Normal
+    'Struk Pembayaran Resmi\n',
+    doubleLine,
+    isLunas ? 'BUKTI PELUNASAN\n' : 'BUKTI PEMBAYARAN (DP)\n',
+    line,
+    '\x1B\x61\x00',     // 5. Rata Kiri
+    `No.Inv  : #${noInvoice}\n`,
+    `Kasir   : ${namaAdmin}\n`,
+    `Klien   : ${namaKlien}\n`,
+    line,
+    itemsSection,
+    diskon > 0 ? `Diskon  : -Rp ${diskon.toLocaleString('id-ID')}\n` : '',
+    line,
+    `Total   : Rp ${totalTarif.toLocaleString('id-ID')}\n`,
+    `Dibayar : Rp ${nominalDibayar.toLocaleString('id-ID')}\n`,
+    !isLunas ? `Sisa    : Rp ${sisa.toLocaleString('id-ID')}\n` : '',
+    doubleLine,
+    '\x1B\x61\x01',     // Rata Tengah
+    `STATUS: ${isLunas ? 'LUNAS' : 'BELUM LUNAS'}\n\n`,
+    settings.footerStruk ? `${settings.footerStruk.trim()}\n` : '',
+    'Terima kasih atas kunjungannya!\n',
+    'Simpan struk ini sbg bukti sah.\n',
+    '\n\n\n\n',           // Feed kertas kosong sebelum sobek
+  ].join('');
 }
 
 /**
@@ -330,19 +451,26 @@ export async function pairBluetoothPrinterDirectly(): Promise<{
   message: string;
   printerName?: string;
 }> {
+  if (typeof window !== 'undefined' && window.isSecureContext === false) {
+    return {
+      success: false,
+      message: 'Web Bluetooth memerlukan koneksi aman (HTTPS). Pastikan situs diakses melalui HTTPS.',
+    };
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nav = navigator as any;
+  const nav = typeof navigator !== 'undefined' ? (navigator as any) : null;
   if (!nav?.bluetooth || typeof nav.bluetooth.requestDevice !== 'function') {
     return {
       success: false,
-      message: 'Browser Anda tidak mendukung Web Bluetooth. Buka lewat Google Chrome di Android/PC.',
+      message: 'Browser Anda tidak mendukung Web Bluetooth. Buka lewat Google Chrome di Android/PC atau gunakan aplikasi APK.',
     };
   }
 
   try {
     const device = await nav.bluetooth.requestDevice({
       acceptAllDevices: true,
-      optionalServices: STANDARD_PRINTER_SERVICES,
+      optionalServices: KNOWN_PRINTER_SERVICES,
     });
 
     if (!device || !device.gatt) {
@@ -366,17 +494,27 @@ export async function pairBluetoothPrinterDirectly(): Promise<{
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes('User cancelled')) {
-      return { success: false, message: 'Pemilihan printer dibatalkan.' };
+    if (errorMsg.includes('User cancelled') || errorMsg.includes('cancelled')) {
+      return { success: false, message: 'Pemilihan printer dibatalkan oleh pengguna.' };
     }
-    return { success: false, message: `Gagal menyambungkan: ${errorMsg}` };
+    if (
+      errorMsg.includes('Bluetooth adapter not available') ||
+      errorMsg.includes('Bluetooth is not enabled') ||
+      errorMsg.includes('adapter is off')
+    ) {
+      return {
+        success: false,
+        message: 'Bluetooth pada perangkat Anda belum aktif. Silakan nyalakan Bluetooth lalu coba lagi.',
+      };
+    }
+    return { success: false, message: `Gagal menyambungkan printer: ${errorMsg}` };
   }
 }
 
 /**
  * Cetak langsung via Web Bluetooth API dengan:
  * 1. Zero-Prompt Auto-Reconnect: Jika printer sudah pernah tersimpan, langsung cetak tanpa dialog.
- * 2. Auto-Fallback: Jika printer lama mati/tidak terjangkau, otomatis buka dialog pencarian printer baru.
+ * 2. Trik Chunking 64-Byte dengan jeda 25ms (Anti-Buffer Overflow)
  */
 export async function printViaWebBluetooth(
   transaksi: Transaksi,
@@ -384,44 +522,67 @@ export async function printViaWebBluetooth(
   laundryName?: string,
   laundryAddress?: string,
   laundryPhone?: string,
-  forcePicker = false
+  forcePicker = false,
+  onProgress?: (message: string) => void
 ): Promise<{ success: boolean; message: string; printerName?: string }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nav = navigator as any;
-  if (!nav.bluetooth || typeof nav.bluetooth.requestDevice !== 'function') {
+  if (typeof window !== 'undefined' && window.isSecureContext === false) {
     return {
       success: false,
-      message: 'Browser Anda tidak mendukung Web Bluetooth. Buka lewat APK Android atau Google Chrome.',
+      message: 'Web Bluetooth memerlukan koneksi aman (HTTPS). Pastikan situs diakses melalui HTTPS.',
     };
   }
 
-  try {
-    let logoRasterBytes: Uint8Array | null = null;
-    if (settings.useLogo && settings.logoPath) {
-      const logoB64 = await getLogoBase64(settings);
-      if (logoB64) {
-        logoRasterBytes = await convertBase64ToEscPosRaster(logoB64, 240);
-      }
-    }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nav = typeof navigator !== 'undefined' ? (navigator as any) : null;
+  if (!nav?.bluetooth || typeof nav.bluetooth.requestDevice !== 'function') {
+    return {
+      success: false,
+      message: 'Browser Anda tidak mendukung Web Bluetooth. Buka lewat Google Chrome di Android/PC atau gunakan aplikasi APK.',
+    };
+  }
 
-    const rawBytes = generateEscPosReceiptBytes(
+  let targetDeviceName =
+    (typeof window !== 'undefined' ? localStorage.getItem('saved_bt_printer_name') : null) || 'Printer Bluetooth';
+
+  try {
+    // 1. Bangun teks perintah ESC/POS 32-karakter
+    const escPosText = buildEscPosReceipt(
       transaksi,
       settings,
       laundryName,
       laundryAddress,
-      laundryPhone,
-      logoRasterBytes
+      laundryPhone
     );
+    const encoder = new TextEncoder();
+    let rawBytes: Uint8Array = encoder.encode(escPosText);
+
+    // Jika logo toko diaktifkan dan tersedia, sisipkan raster logo di awal nota
+    if (settings.useLogo && settings.logoPath) {
+      try {
+        const logoB64 = await getLogoBase64(settings);
+        if (logoB64) {
+          const logoRaster = await convertBase64ToEscPosRaster(logoB64, 240);
+          if (logoRaster && logoRaster.length > 0) {
+            const combined = new Uint8Array(logoRaster.length + rawBytes.length);
+            combined.set(logoRaster, 0);
+            combined.set(rawBytes, logoRaster.length);
+            rawBytes = combined;
+          }
+        }
+      } catch (logoErr) {
+        console.warn('Gagal memuat logo untuk ESC/POS, melanjutkan teks biasa:', logoErr);
+      }
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let activeChar: any = null;
-    let targetDeviceName = localStorage.getItem('saved_bt_printer_name') || 'Printer Bluetooth';
 
-    // 1. Coba Zero-Prompt Auto-Reconnect jika tidak dipaksa buka dialog pemilih
+    // 2. Coba Zero-Prompt Auto-Reconnect jika tidak dipaksa buka dialog pemilih
     if (!forcePicker) {
       try {
         // A. Gunakan cachedBluetoothDevice jika masih aktif di memori
         if (cachedBluetoothDevice?.gatt) {
+          onProgress?.(`Menghubungkan ke ${targetDeviceName}...`);
           if (!cachedBluetoothDevice.gatt.connected) {
             await cachedBluetoothDevice.gatt.connect();
           }
@@ -439,6 +600,7 @@ export async function printViaWebBluetooth(
           );
 
           if (matched && matched.gatt) {
+            onProgress?.(`Menghubungkan ke printer tersimpan (${matched.name || targetDeviceName})...`);
             await matched.gatt.connect();
             activeChar = await findWriteCharacteristic(matched);
             cachedBluetoothDevice = matched;
@@ -446,25 +608,30 @@ export async function printViaWebBluetooth(
           }
         }
       } catch (autoErr) {
-        console.warn('Auto-reconnect printer lama gagal (mungkin mati/di luar jangkauan), auto-fallback ke dialog:', autoErr);
-        // Reset cache untuk trigger fallback
+        console.warn('Auto-reconnect printer lama gagal:', autoErr);
+        // Reset cache untuk trigger pemilihan baru
         cachedBluetoothDevice = null;
         cachedCharacteristic = null;
         activeChar = null;
+        onProgress?.(
+          `Printer tersimpan (${targetDeviceName}) tidak merespons (mungkin mati atau di luar jangkauan). Membuka pencarian baru...`
+        );
       }
     }
 
-    // 2. Auto-Fallback: Jika belum terhubung atau dipaksa pilih baru, buka dialog pemilihan printer
+    // 3. Jika belum terhubung atau dipaksa pilih baru, buka dialog pemilihan printer
     if (!activeChar) {
+      onProgress?.('Silakan pilih printer Bluetooth Anda dari daftar dialog browser...');
       const device = await nav.bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: STANDARD_PRINTER_SERVICES,
+        optionalServices: KNOWN_PRINTER_SERVICES,
       });
 
       if (!device || !device.gatt) {
-        return { success: false, message: 'Gagal terhubung ke printer Bluetooth.' };
+        return { success: false, message: 'Gagal terhubung ke printer Bluetooth yang dipilih.' };
       }
 
+      onProgress?.(`Menghubungkan ke ${device.name || 'Printer Bluetooth'}...`);
       activeChar = await findWriteCharacteristic(device);
       cachedBluetoothDevice = device;
       targetDeviceName = device.name || 'Printer Bluetooth';
@@ -476,12 +643,18 @@ export async function printViaWebBluetooth(
       }
     }
 
-    // 3. Kirim data ESC/POS dalam potongan maksimal 100 bytes (Bluetooth MTU safe)
-    const chunkSize = 100;
+    // 4. Eksekusi Pengiriman ke Bluetooth dengan Trik Chunking 64-Byte & Jeda 25ms (Anti-Buffer Overflow)
+    onProgress?.(`Mengirim data struk ke ${targetDeviceName}...`);
+    const chunkSize = 64;
     for (let i = 0; i < rawBytes.length; i += chunkSize) {
       const chunk = rawBytes.slice(i, i + chunkSize);
-      await activeChar.writeValue(chunk);
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      if (activeChar.properties?.writeWithoutResponse) {
+        await activeChar.writeValueWithoutResponse(chunk);
+      } else {
+        await activeChar.writeValue(chunk);
+      }
+      // Jeda 25 milidetik antar pengiriman chunk
+      await new Promise((r) => setTimeout(r, 25));
     }
 
     return {
@@ -491,8 +664,29 @@ export async function printViaWebBluetooth(
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes('User cancelled')) {
-      return { success: false, message: 'Pemilihan printer dibatalkan.' };
+    if (errorMsg.includes('User cancelled') || errorMsg.includes('cancelled')) {
+      return { success: false, message: 'Pemilihan printer dibatalkan oleh pengguna.' };
+    }
+    if (
+      errorMsg.includes('Bluetooth adapter not available') ||
+      errorMsg.includes('Bluetooth is not enabled') ||
+      errorMsg.includes('adapter is off')
+    ) {
+      return {
+        success: false,
+        message: 'Bluetooth pada perangkat Anda belum aktif. Silakan nyalakan Bluetooth lalu coba lagi.',
+      };
+    }
+    if (
+      errorMsg.includes('GATT') ||
+      errorMsg.includes('Connection failed') ||
+      errorMsg.includes('NetworkError') ||
+      errorMsg.includes('disconnected')
+    ) {
+      return {
+        success: false,
+        message: `Koneksi ke ${targetDeviceName} terputus atau gagal terhubung. Pastikan printer dalam keadaan HIDUP (ON) dan dalam jarak dekat.`,
+      };
     }
     return { success: false, message: `Gagal cetak Bluetooth: ${errorMsg}` };
   }

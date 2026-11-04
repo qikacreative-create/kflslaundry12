@@ -3,7 +3,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
-    "site": "kflslaundry",
+    "site": "kflslaundrytest",
     "public": "dist",
     "ignore": [
       "firebase.json",

@@ -1,11 +1,12 @@
-import { toBlob } from 'html-to-image';
+import { toBlob, toPng } from 'html-to-image';
 import { Transaksi, SettingsData } from '../types';
 import { formatDateIndo, formatNumberOnly } from './formatters';
 import { getThermalLogoDataUrl } from './logoHelper';
 
 export function getReceiptFileName(transaksi: Transaksi): string {
   const safeInvoice = (transaksi.nomorTransaksi || 'nota').replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `struk-${safeInvoice}.png`;
+  const safeClient = (transaksi.namaPelanggan || 'pelanggan').replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `Struk_${safeClient}_${safeInvoice}.png`;
 }
 
 export function triggerBlobDownload(
@@ -45,22 +46,98 @@ export async function tryCopyImageBlobToClipboard(blob: Blob): Promise<boolean> 
   }
 }
 
+/**
+ * BAGIAN 3: Cara Share Nota Gambar ke Semua Aplikasi (Web Share API & html-to-image)
+ */
+export async function bagikanGambarNota({
+  elementId = 'printable-receipt-area',
+  namaKlien = 'Pelanggan',
+  noInvoice = '001',
+}: {
+  elementId?: string;
+  namaKlien?: string;
+  noInvoice?: string;
+} = {}): Promise<{ success: boolean; message: string; sharedViaNav?: boolean }> {
+  if (typeof document === 'undefined') {
+    return { success: false, message: 'Lingkungan dokumen tidak tersedia.' };
+  }
+
+  const node = document.getElementById(elementId);
+  if (!node) {
+    return { success: false, message: 'Elemen nota tidak ditemukan.' };
+  }
+
+  const fileName = `Struk_${namaKlien.replace(/[^a-zA-Z0-9]/g, '_')}_${noInvoice}.png`;
+
+  try {
+    // 1. AMBIL SNAPSHOT DARI ELEMEN HTML
+    // pixelRatio: 2 = Gambar jernih 2x lipat (Retina), tidak buram saat di-zoom di WhatsApp
+    // skipFonts: true = Mencegah freeze karena CORS Google Fonts
+    const dataUrl = await toPng(node, {
+      pixelRatio: 2,
+      cacheBust: true,
+      skipFonts: true,
+      style: { transform: 'none' },
+    });
+
+    // 2. UBAH DATA URL BASE64 MENJADI FILE BINARY (.PNG)
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], fileName, { type: 'image/png' });
+
+    // Salin ke clipboard jika browser desktop mendukung
+    tryCopyImageBlobToClipboard(blob);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nav = typeof navigator !== 'undefined' ? (navigator as any) : null;
+
+    // 3. JALUR UTAMA: BUKA LEMBAR BERBAGI SISTEM HP (WEB SHARE API)
+    if (nav?.share && (!nav.canShare || nav.canShare({ files: [file] }))) {
+      await nav.share({
+        title: `Struk Pembayaran #${noInvoice}`,
+        text: `Halo kak ${namaKlien}, berikut bukti pembayaran resmi Anda.`,
+        files: [file], // File gambar asli diserahkan ke sistem HP
+      });
+      return { success: true, message: 'Struk berhasil dibagikan!', sharedViaNav: true };
+    }
+
+    // 4. JALUR CADANGAN (Laptop / PC / Browser tanpa dukungan share file)
+    // Otomatis mengunduh file gambar ke penyimpanan
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    return {
+      success: true,
+      message: 'Gambar struk telah disimpan di perangkat Anda & disalin ke clipboard.',
+      sharedViaNav: false,
+    };
+  } catch (err: unknown) {
+    // Jika user hanya membatalkan popup share (klik tombol batal/silang), jangan beri pesan error
+    if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError') {
+      return { success: false, message: 'Pembagian struk dibatalkan.' };
+    }
+
+    console.error('Error saat membagikan nota:', err);
+    return { success: false, message: 'Gagal membagikan struk.' };
+  }
+}
+
 export async function captureReceiptElementToBlob(element: HTMLElement): Promise<Blob> {
-  const width = 320;
-  const height = Math.max(element.offsetHeight, element.scrollHeight, 220);
-  const blob = await toBlob(element, {
-    cacheBust: false,
+  const dataUrl = await toPng(element, {
+    cacheBust: true,
     skipFonts: true,
-    pixelRatio: 3,
-    width,
-    height,
-    backgroundColor: '#ffffff',
+    pixelRatio: 2,
     style: {
-      margin: '0',
       transform: 'none',
       boxShadow: 'none',
     },
   });
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
   if (!blob || blob.size < 500) {
     throw new Error('Gagal merender elemen struk ke gambar PNG');
   }

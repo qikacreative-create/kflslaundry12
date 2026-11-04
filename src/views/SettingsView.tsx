@@ -250,6 +250,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handlePairBluetooth = async () => {
+    toast.info('Membuka dialog pencarian printer Bluetooth...', 2000);
     const res = await pairBluetoothPrinterDirectly();
     if (res.success && res.printerName) {
       setSavedBtPrinter(res.printerName);
@@ -259,8 +260,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         printerName: res.printerName,
       });
       toast.success(res.message);
-    } else if (res.message && !res.message.includes('dibatalkan')) {
-      toast.warning(res.message);
+    } else if (res.message && res.message.includes('dibatalkan')) {
+      toast.info(res.message, 2500);
+    } else if (res.message) {
+      toast.error(res.message, 4500);
     }
   };
 
