@@ -685,7 +685,7 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
   // Handler Ekspor Excel (.xlsx) — dimuat dinamis saat tombol diklik
   const handleExportExcel = async () => {
     if (!canExcel) {
-      toast.warning('Fitur ekspor Excel (.xlsx) hanya untuk Paket Premium.');
+      toast.warning('Fitur ekspor Excel (.xlsx) khusus untuk Paket Pro (Rp 49.000).');
       return;
     }
 
@@ -778,7 +778,7 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
   // 1-Click Direct Download PDF File — dimuat dinamis saat tombol diklik
   const handleDownloadPDF = async () => {
     if (!canPdf) {
-      toast.warning('Fitur cetak dan unduh dokumen laporan resmi PDF hanya untuk Paket Premium.');
+      toast.warning('Fitur cetak dan unduh dokumen laporan resmi PDF khusus untuk Paket Pro (Rp 49.000).');
       return;
     }
 
@@ -796,7 +796,7 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
   // Open Preview & Print Modal
   const handleOpenPdfModal = () => {
     if (!canPdf) {
-      toast.warning('Fitur cetak dokumen laporan resmi PDF hanya untuk Paket Premium.');
+      toast.warning('Fitur cetak dokumen laporan resmi PDF khusus untuk Paket Pro (Rp 49.000).');
       return;
     }
 
@@ -830,7 +830,7 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
     type="button"
     onClick={handleExportExcel}
     className="p-2 rounded-xl hover:bg-slate-100 text-slate-700 transition active:scale-95 cursor-pointer"
-    title={!canExcel ? 'Terkunci di Paket Newcomer (Klik untuk upgrade)' : 'Unduh Spreadsheet Excel (.xlsx)'}
+    title={!canExcel ? 'Khusus Paket Pro (Rp 49.000) - Klik untuk upgrade' : 'Unduh Spreadsheet Excel (.xlsx)'}
   >
     {!canExcel ? (
       <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
@@ -844,7 +844,7 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
     type="button"
     onClick={handleDownloadPDF}
     className="p-2 rounded-xl hover:bg-slate-100 text-slate-700 transition active:scale-95 cursor-pointer"
-    title={!canPdf ? 'Terkunci di Paket Newcomer (Klik untuk upgrade ke Premium)' : 'Unduh Berkas PDF (.pdf) Langsung'}
+    title={!canPdf ? 'Khusus Paket Pro (Rp 49.000) - Klik untuk upgrade' : 'Unduh Berkas PDF (.pdf) Langsung'}
   >
     {!canPdf ? (
       <Download className="w-4 h-4 text-amber-500" />
@@ -858,7 +858,7 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
     type="button"
     onClick={handleOpenPdfModal}
     className="p-2 rounded-xl hover:bg-slate-100 text-slate-700 transition active:scale-95 cursor-pointer"
-    title={!canPdf ? 'Terkunci di Paket Newcomer (Klik untuk upgrade)' : 'Pratinjau Dokumen & Cetak Kertas'}
+    title={!canPdf ? 'Khusus Paket Pro (Rp 49.000) - Klik untuk upgrade' : 'Pratinjau Dokumen & Cetak Kertas'}
   >
     {!canPdf ? (
       <Printer className="w-4 h-4 text-amber-600" />

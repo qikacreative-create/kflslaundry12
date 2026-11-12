@@ -16,7 +16,7 @@
         "laundryId": { "type": "string", "maxLength": 128 },
         "laundries": { "type": "object" },
         "walletBalance": { "type": "number" },
-        "subscriptionType": { "type": "string", "enum": ["newcomer", "premium"] },
+        "subscriptionType": { "type": "string", "enum": ["newcomer", "premium", "pro"] },
         "subscriptionEndDate": { "type": "number" },
         "lastSettledOrderId": { "type": "string", "maxLength": 128 },
         "createdAt": { "type": "number" },
@@ -31,7 +31,7 @@
       "properties": {
         "orderId": { "type": "string", "maxLength": 128 },
         "ownerId": { "type": "string", "maxLength": 128 },
-        "purpose": { "type": "string", "enum": ["extend_premium", "topup_wallet"] },
+        "purpose": { "type": "string", "enum": ["extend_premium", "extend_pro", "topup_wallet"] },
         "amount": { "type": "number" },
         "durationDays": { "type": "number" },
         "snapToken": { "type": "string", "maxLength": 256 },
@@ -58,10 +58,13 @@
           "type": "string",
           "enum": [
             "midtrans_extend_premium",
+            "midtrans_extend_pro",
             "midtrans_topup_wallet",
             "wallet_extend_premium",
+            "wallet_extend_pro",
             "wallet_activate_branch",
             "admin_extend_premium",
+            "admin_extend_pro",
             "admin_topup_wallet"
           ]
         },
@@ -74,7 +77,7 @@
         "walletBefore": { "type": "number" },
         "walletAfter": { "type": "number" },
         "durationDays": { "type": "number" },
-        "subscriptionTypeAfter": { "type": "string", "enum": ["newcomer", "premium"] },
+        "subscriptionTypeAfter": { "type": "string", "enum": ["newcomer", "premium", "pro"] },
         "subscriptionEndDateAfter": { "type": "number" },
         "note": { "type": "string", "maxLength": 300 },
         "createdAt": { "type": "number" }
@@ -102,7 +105,7 @@
         "namaLaundry": { "type": "string", "minLength": 1, "maxLength": 120 },
         "alamat": { "type": "string", "maxLength": 300 },
         "nomorTelepon": { "type": "string", "maxLength": 40 },
-        "subscriptionType": { "type": "string", "enum": ["newcomer", "premium"] },
+        "subscriptionType": { "type": "string", "enum": ["newcomer", "premium", "pro"] },
         "subscriptionEndDate": { "type": "number" },
         "updatedAt": { "type": "number" }
       },

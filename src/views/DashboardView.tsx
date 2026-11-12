@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Clock,
   Coins,
+  Crown,
   History,
   Lock,
   Plus,
@@ -556,7 +557,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       type="button"
                       onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
                       title="Klik untuk memilih cabang laundry"
-                      className="flex flex-col items-start px-1 py-1 rounded-xl hover:bg-white/10 active:scale-98 transition max-w-[190px] cursor-pointer"
+                      className="flex flex-col items-start px-1 py-1 rounded-xl hover:bg-white/10 active:scale-98 transition max-w-[210px] cursor-pointer"
                     >
                       <div className="flex items-center gap-1">
                         <span className="font-bold text-[18px] truncate text-white tracking-wide">
@@ -568,14 +569,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           }`}
                         />
                       </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onOpenUpgradeModal) onOpenUpgradeModal();
+                            else if (onOpenKelolaOwner) onOpenKelolaOwner();
+                          }}
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-black tracking-tight transition shadow-2xs ${
+                            limits.tier === 'pro'
+                              ? 'bg-amber-400 text-amber-950 font-black'
+                              : limits.tier === 'premium'
+                              ? 'bg-rose-100 text-[#800000] font-black'
+                              : 'bg-emerald-100 text-emerald-950 font-black'
+                          }`}
+                          title={`Paket Aktif: ${limits.label}`}
+                        >
+                          <Crown className="w-2.5 h-2.5 shrink-0" />
+                          <span>{limits.label}</span>
+                        </span>
+                        {!isNewcomer && (
+                          <span className="text-[9px] text-rose-100/90 font-medium">
+                            {isExpired ? '• Habis' : `• ${Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))} Hari`}
+                          </span>
+                        )}
+                      </div>
                     </button>
                   ) : (
-                    <div className="flex flex-col items-start px-1 py-1 max-w-[190px]">
+                    <div className="flex flex-col items-start px-1 py-1 max-w-[210px]">
                       <div className="flex items-center gap-1">
                         <span className="font-bold text-[18px] truncate text-white tracking-wide">
                           {resolvedMobileLaundryName}
                         </span>
                       </div>
+                 
                     </div>
                   )}
 

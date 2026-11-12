@@ -14,6 +14,7 @@ const SUPER_ADMIN_EMAILS = new Set([
 ]);
 
 const HARGA_PREMIUM_BULANAN = 27000;
+const HARGA_PRO_BULANAN = 49000;
 const EXTRA_BRANCH_PRICE = 25000;
 const ALLOWED_SELF_EXTEND_DAYS = new Set([30, 60, 90, 180, 360]);
 const ALLOWED_ADMIN_EXTEND_DAYS = new Set([30, 60, 90, 180, 360, 365]);
@@ -584,7 +585,7 @@ async function commitOrderSettlement(params: {
   orderUpdateTime?: string;
   ownerId: string;
   userUpdateTime?: string;
-  purpose: 'extend_premium' | 'topup_wallet';
+  purpose: 'extend_premium' | 'extend_pro' | 'topup_wallet';
   amount: number;
   currentWalletBalance: number;
   currentSubEnd: number | null;
@@ -598,21 +599,22 @@ async function commitOrderSettlement(params: {
   durationDays: number;
 }> {
   const now = Date.now();
-  const durationDays =
-    params.purpose === 'extend_premium'
-      ? Math.max(30, Math.round(params.amount / HARGA_PREMIUM_BULANAN) * 30)
-      : 0;
+  const isExtend = params.purpose === 'extend_premium' || params.purpose === 'extend_pro';
+  const targetTier = params.purpose === 'extend_pro' ? 'pro' : 'premium';
+  const unitPrice = params.purpose === 'extend_pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
+  const durationDays = isExtend
+    ? Math.max(30, Math.round(params.amount / unitPrice) * 30)
+    : 0;
   const walletBefore = Math.max(0, Math.round(params.currentWalletBalance));
   const nextWalletBalance =
     params.purpose === 'topup_wallet'
       ? walletBefore + Math.round(params.amount)
       : walletBefore;
   const baseSubEnd = Math.max(now, Number(params.currentSubEnd) || 0);
-  const nextSubEnd =
-    params.purpose === 'extend_premium'
-      ? baseSubEnd + durationDays * 24 * 60 * 60 * 1000
-      : params.currentSubEnd;
-  const nextSubType = params.purpose === 'extend_premium' ? 'premium' : params.currentSubType;
+  const nextSubEnd = isExtend
+    ? baseSubEnd + durationDays * 24 * 60 * 60 * 1000
+    : params.currentSubEnd;
+  const nextSubType = isExtend ? targetTier : params.currentSubType;
 
   const docRoot = `projects/${params.projectId}/databases/(default)/documents`;
   const orderDocName = `${docRoot}/payment_orders/${params.orderId}`;
@@ -628,7 +630,7 @@ async function commitOrderSettlement(params: {
           updatedAt: now,
         }
       : {
-          subscriptionType: 'premium',
+          subscriptionType: targetTier,
           subscriptionEndDate: nextSubEnd,
           lastSettledOrderId: params.orderId,
           updatedAt: now,
@@ -679,7 +681,9 @@ async function commitOrderSettlement(params: {
           actorUid: 'midtrans_gateway',
           actorEmail: 'system@midtrans',
           action:
-            params.purpose === 'extend_premium'
+            params.purpose === 'extend_pro'
+              ? 'midtrans_extend_pro'
+              : params.purpose === 'extend_premium'
               ? 'midtrans_extend_premium'
               : 'midtrans_topup_wallet',
           channel: 'MIDTRANS',
@@ -700,11 +704,11 @@ async function commitOrderSettlement(params: {
 
   await commitFirestoreWrites(params.projectId, writes, params.bearerToken);
 
-  if (params.purpose === 'extend_premium') {
+  if (isExtend) {
     await syncOwnerBranchesSubscription({
       projectId: params.projectId,
       ownerId: params.ownerId,
-      subscriptionType: 'premium',
+      subscriptionType: targetTier,
       subscriptionEndDate: nextSubEnd,
       bearerToken: params.bearerToken,
       knownLaundriesMap: params.knownLaundriesMap,
@@ -974,7 +978,9 @@ async function startServer() {
       }
 
       const purpose =
-        req.body?.purpose === 'extend_premium'
+        req.body?.purpose === 'extend_pro'
+          ? 'extend_pro'
+          : req.body?.purpose === 'extend_premium'
           ? 'extend_premium'
           : req.body?.purpose === 'topup_wallet'
           ? 'topup_wallet'
@@ -984,6 +990,16 @@ async function startServer() {
 
       if (!purpose) {
         return res.status(400).json({ error: 'Tujuan pembayaran tidak valid.' });
+      }
+      if (
+        purpose === 'extend_pro' &&
+        (amount < HARGA_PRO_BULANAN ||
+          amount % HARGA_PRO_BULANAN !== 0 ||
+          amount > HARGA_PRO_BULANAN * 12)
+      ) {
+        return res
+          .status(400)
+          .json({ error: 'Nominal perpanjangan Paket Pro harus kelipatan Rp 49.000.' });
       }
       if (
         purpose === 'extend_premium' &&
@@ -1001,12 +1017,15 @@ async function startServer() {
 
       const safeUid = verified.uid.replace(/[^A-Za-z0-9]/g, '').slice(0, 10) || 'USER';
       const ts = String(Date.now()).padStart(13, '0').slice(0, 13);
-      const prefix = purpose === 'extend_premium' ? 'PRM' : 'TOP';
+      const prefix = purpose === 'extend_pro' ? 'PRO' : purpose === 'extend_premium' ? 'PRM' : 'TOP';
       const orderId = `KFLS-${prefix}-${safeUid}-${ts}`;
 
-      const months = Math.max(1, Math.round(amount / HARGA_PREMIUM_BULANAN));
+      const unitPrice = purpose === 'extend_pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
+      const months = Math.max(1, Math.round(amount / unitPrice));
       const itemName =
-        purpose === 'extend_premium'
+        purpose === 'extend_pro'
+          ? `Paket Pro Kafelas Laundry (${months * 30} Hari)`
+          : purpose === 'extend_premium'
           ? `Paket Premium Kafelas Laundry (${months * 30} Hari)`
           : `Top Up Saldo Owner Kafelas Laundry`;
 
@@ -1134,10 +1153,17 @@ async function startServer() {
         return res.status(404).json({ error: 'Profil akun owner tidak ditemukan.' });
       }
 
-      const purpose = orderDoc.data.purpose === 'extend_premium' ? 'extend_premium' : 'topup_wallet';
+      const purpose =
+        orderDoc.data.purpose === 'extend_pro'
+          ? 'extend_pro'
+          : orderDoc.data.purpose === 'extend_premium'
+          ? 'extend_premium'
+          : 'topup_wallet';
       const amount = Math.round(Number(orderDoc.data.amount) || 0);
       const durationDays =
-        purpose === 'extend_premium'
+        purpose === 'extend_pro'
+          ? Math.max(30, Math.round(amount / HARGA_PRO_BULANAN) * 30)
+          : purpose === 'extend_premium'
           ? Math.max(30, Math.round(amount / HARGA_PREMIUM_BULANAN) * 30)
           : 0;
 
@@ -1287,7 +1313,12 @@ async function startServer() {
             orderUpdateTime: orderDoc.updateTime,
             ownerId,
             userUpdateTime: userDoc.updateTime,
-            purpose: orderDoc.data.purpose === 'extend_premium' ? 'extend_premium' : 'topup_wallet',
+            purpose:
+              orderDoc.data.purpose === 'extend_pro'
+                ? 'extend_pro'
+                : orderDoc.data.purpose === 'extend_premium'
+                ? 'extend_premium'
+                : 'topup_wallet',
             amount,
             currentWalletBalance: Number(userDoc.data.walletBalance) || 0,
             currentSubEnd:
@@ -1339,8 +1370,11 @@ async function startServer() {
       }
 
       // Server-authoritative cost calculation (mengabaikan angka harga dari client)
+      const targetTier = req.body?.targetTier === 'pro' ? 'pro' : 'premium';
+      const isPro = targetTier === 'pro';
+      const unitPrice = isPro ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
       const months = durationDays / 30;
-      const authoritativeCost = Math.round(months * HARGA_PREMIUM_BULANAN);
+      const authoritativeCost = Math.round(months * unitPrice);
 
       const userDoc = await getFirestoreDoc(
         fbCfg.projectId,
@@ -1373,8 +1407,10 @@ async function startServer() {
 
       const docRoot = `projects/${fbCfg.projectId}/databases/(default)/documents`;
       const userDocName = `${docRoot}/users/${verified.uid}`;
-      const auditId = `AUD-WLT-PRM-${now}-${crypto.randomBytes(3).toString('hex')}`;
+      const auditPrefix = isPro ? 'AUD-WLT-PRO' : 'AUD-WLT-PRM';
+      const auditId = `${auditPrefix}-${now}-${crypto.randomBytes(3).toString('hex')}`;
       const auditDocName = `${docRoot}/billing_audit_logs/${auditId}`;
+      const tierLabel = isPro ? 'Paket Pro' : 'Paket Premium';
 
       await commitFirestoreWrites(
         fbCfg.projectId,
@@ -1384,7 +1420,7 @@ async function startServer() {
               name: userDocName,
               fields: toFirestoreFields({
                 walletBalance: walletAfter,
-                subscriptionType: 'premium',
+                subscriptionType: targetTier,
                 subscriptionEndDate: nextSubEnd,
                 updatedAt: now,
               }),
@@ -1404,16 +1440,16 @@ async function startServer() {
                 uid: verified.uid,
                 actorUid: verified.uid,
                 actorEmail: verified.email || '',
-                action: 'wallet_extend_premium',
+                action: isPro ? 'wallet_extend_pro' : 'wallet_extend_premium',
                 channel: 'WALLET',
                 amount: authoritativeCost,
                 walletDelta: -authoritativeCost,
                 walletBefore,
                 walletAfter,
                 durationDays,
-                subscriptionTypeAfter: 'premium',
+                subscriptionTypeAfter: targetTier,
                 subscriptionEndDateAfter: nextSubEnd,
-                note: `Perpanjangan Paket Premium (${durationDays} Hari) dari saldo dompet`,
+                note: `Perpanjangan ${tierLabel} (${durationDays} Hari) dari saldo dompet`,
                 createdAt: now,
               }),
             },
@@ -1426,7 +1462,7 @@ async function startServer() {
       await syncOwnerBranchesSubscription({
         projectId: fbCfg.projectId,
         ownerId: verified.uid,
-        subscriptionType: 'premium',
+        subscriptionType: targetTier,
         subscriptionEndDate: nextSubEnd,
         bearerToken: writeToken,
         knownLaundriesMap: userDoc.data.laundries,
@@ -1438,7 +1474,7 @@ async function startServer() {
         cost: authoritativeCost,
         durationDays,
         walletBalance: walletAfter,
-        subscriptionType: 'premium',
+        subscriptionType: targetTier,
         subscriptionEndDate: nextSubEnd,
       });
     } catch (error) {
@@ -1729,7 +1765,9 @@ async function startServer() {
       const targetUid =
         typeof req.body?.targetUid === 'string' ? req.body.targetUid.trim() : '';
       const action =
-        req.body?.action === 'extend_premium'
+        req.body?.action === 'extend_pro'
+          ? 'extend_pro'
+          : req.body?.action === 'extend_premium'
           ? 'extend_premium'
           : req.body?.action === 'topup_wallet'
           ? 'topup_wallet'
@@ -1751,9 +1789,10 @@ async function startServer() {
       if (!action) {
         return res.status(400).json({ error: 'Jenis tindakan aktivasi tidak valid.' });
       }
-      if (action === 'extend_premium' && !ALLOWED_ADMIN_EXTEND_DAYS.has(durationDays)) {
+      const isExtendAction = action === 'extend_premium' || action === 'extend_pro';
+      if (isExtendAction && !ALLOWED_ADMIN_EXTEND_DAYS.has(durationDays)) {
         return res.status(400).json({
-          error: 'Durasi aktivasi Paket Premium harus 30, 60, 90, 180, atau 360 hari.',
+          error: 'Durasi aktivasi paket harus 30, 60, 90, 180, atau 360 hari.',
         });
       }
       if (action === 'topup_wallet' && (rawAmount < 5000 || rawAmount > 50_000_000)) {
@@ -1784,20 +1823,19 @@ async function startServer() {
           : null;
       const currentSubType = String(userDoc.data.subscriptionType || 'newcomer');
 
-      const effectiveAmount =
-        action === 'extend_premium'
-          ? rawAmount > 0
-            ? rawAmount
-            : Math.round((durationDays / 30) * HARGA_PREMIUM_BULANAN)
-          : rawAmount;
+      const unitPrice = action === 'extend_pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
+      const effectiveAmount = isExtendAction
+        ? rawAmount > 0
+          ? rawAmount
+          : Math.round((durationDays / 30) * unitPrice)
+        : rawAmount;
 
       const walletAfter =
         action === 'topup_wallet' ? walletBefore + effectiveAmount : walletBefore;
-      const nextSubType = action === 'extend_premium' ? 'premium' : currentSubType;
-      const nextSubEnd =
-        action === 'extend_premium'
-          ? Math.max(now, currentSubEnd || 0) + durationDays * 24 * 60 * 60 * 1000
-          : currentSubEnd;
+      const nextSubType = action === 'extend_pro' ? 'pro' : action === 'extend_premium' ? 'premium' : currentSubType;
+      const nextSubEnd = isExtendAction
+        ? Math.max(now, currentSubEnd || 0) + durationDays * 24 * 60 * 60 * 1000
+        : currentSubEnd;
 
       const docRoot = `projects/${fbCfg.projectId}/databases/(default)/documents`;
       const userDocName = `${docRoot}/users/${targetUid}`;
@@ -1811,7 +1849,7 @@ async function startServer() {
               updatedAt: now,
             }
           : {
-              subscriptionType: 'premium',
+              subscriptionType: nextSubType,
               subscriptionEndDate: nextSubEnd,
               updatedAt: now,
             };
@@ -1821,24 +1859,27 @@ async function startServer() {
           ? ['walletBalance', 'updatedAt']
           : ['subscriptionType', 'subscriptionEndDate', 'updatedAt'];
 
+      const actionLabel = action === 'extend_pro' ? 'admin_extend_pro' : action === 'extend_premium' ? 'admin_extend_premium' : 'admin_topup_wallet';
+      const packageLabel = action === 'extend_pro' ? 'Paket Pro' : 'Paket Premium';
+
       const auditEntry = {
         id: auditId,
         uid: targetUid,
         actorUid: verified.uid,
         actorEmail: verified.email,
-        action: action === 'extend_premium' ? 'admin_extend_premium' : 'admin_topup_wallet',
+        action: actionLabel,
         channel,
         amount: effectiveAmount,
         walletDelta: action === 'topup_wallet' ? effectiveAmount : 0,
         walletBefore,
         walletAfter,
-        durationDays: action === 'extend_premium' ? durationDays : 0,
+        durationDays: isExtendAction ? durationDays : 0,
         subscriptionTypeAfter: nextSubType,
         subscriptionEndDateAfter: nextSubEnd,
         note:
           customNote ||
-          (action === 'extend_premium'
-            ? `Aktivasi Paket Premium ${durationDays} Hari via Transfer ${channel}`
+          (isExtendAction
+            ? `Aktivasi ${packageLabel} ${durationDays} Hari via Transfer ${channel}`
             : `Top Up Saldo Dompet via Transfer ${channel}`),
         createdAt: now,
       };
@@ -1869,11 +1910,11 @@ async function startServer() {
         fsToken
       );
 
-      if (action === 'extend_premium') {
+      if (isExtendAction) {
         await syncOwnerBranchesSubscription({
           projectId: fbCfg.projectId,
           ownerId: targetUid,
-          subscriptionType: 'premium',
+          subscriptionType: nextSubType,
           subscriptionEndDate: nextSubEnd,
           bearerToken: fsToken,
           knownLaundriesMap: userDoc.data.laundries,

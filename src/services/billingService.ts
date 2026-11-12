@@ -2,7 +2,7 @@ import { doc, runTransaction, updateDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Laundry } from '../types';
 import { formatRupiah } from '../utils/formatters';
-import { HARGA_PREMIUM_BULANAN } from '../utils/subscription';
+import { HARGA_PREMIUM_BULANAN, HARGA_PRO_BULANAN } from '../utils/subscription';
 import {
   getActiveIdToken,
   isRunningOnBackendHost,
@@ -10,7 +10,7 @@ import {
 } from './midtransService';
 
 export type ManualTransferChannel = 'BRI' | 'DANA' | 'MANUAL';
-export type AdminGrantAction = 'extend_premium' | 'topup_wallet';
+export type AdminGrantAction = 'extend_premium' | 'extend_pro' | 'topup_wallet';
 
 export interface BillingApiError extends Error {
   code?: string;
@@ -162,6 +162,7 @@ async function postProtectedBillingJson<T>(
 export async function extendSubscriptionDirectFromWallet(params?: {
   durationDays?: number;
   customCost?: number;
+  targetTier?: 'premium' | 'pro';
 }): Promise<ExtendSubscriptionResult> {
   const currentUserAuth = auth.currentUser;
   if (!currentUserAuth) {
@@ -171,10 +172,17 @@ export async function extendSubscriptionDirectFromWallet(params?: {
   }
 
   const durationDays = params?.durationDays ? Math.round(params.durationDays) : 30;
+  const targetTier =
+    params?.targetTier ||
+    (params?.customCost !== undefined && params.customCost >= 49000 ? 'pro' : 'premium');
+  const baseMonthlyRate = targetTier === 'pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
   const authoritativeCost =
     params?.customCost !== undefined
       ? Math.round(params.customCost)
-      : Math.round((durationDays / 30) * HARGA_PREMIUM_BULANAN);
+      : Math.round((durationDays / 30) * baseMonthlyRate);
+
+  const tierLabel = targetTier === 'pro' ? 'Paket Pro' : 'Paket Premium';
+  const actionName = targetTier === 'pro' ? 'wallet_extend_pro' : 'wallet_extend_premium';
 
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -224,10 +232,10 @@ export async function extendSubscriptionDirectFromWallet(params?: {
       const branchDocRef = doc(db, 'laundries', primaryBranchId);
       const branchSnap = await transaction.get(branchDocRef);
 
-      // 1. Potong saldo dompet & tambah 30 hari subscriptionEndDate di users Firestore
+      // 1. Potong saldo dompet & tambah durasi di users Firestore
       transaction.update(userDocRef, {
         walletBalance: walletAfter,
-        subscriptionType: 'premium',
+        subscriptionType: targetTier,
         subscriptionEndDate: nextSubEnd,
         updatedAt: now,
       });
@@ -238,23 +246,23 @@ export async function extendSubscriptionDirectFromWallet(params?: {
         uid: currentUserAuth.uid,
         actorUid: currentUserAuth.uid,
         actorEmail: currentUserAuth.email || userData.emailOrPhone || '',
-        action: 'wallet_extend_premium',
+        action: actionName,
         channel: 'WALLET',
         amount: authoritativeCost,
         walletDelta: -authoritativeCost,
         walletBefore,
         walletAfter,
         durationDays,
-        subscriptionTypeAfter: 'premium',
+        subscriptionTypeAfter: targetTier,
         subscriptionEndDateAfter: nextSubEnd,
-        note: `Perpanjangan Paket Premium (${durationDays} Hari) langsung dari saldo dompet`,
+        note: `Perpanjangan ${tierLabel} (${durationDays} Hari) langsung dari saldo dompet`,
         createdAt: now,
       });
 
       // 3. Update status cabang utama jika ada
       if (branchSnap.exists()) {
         transaction.update(branchDocRef, {
-          subscriptionType: 'premium',
+          subscriptionType: targetTier,
           subscriptionEndDate: nextSubEnd,
           updatedAt: now,
         });
@@ -266,7 +274,7 @@ export async function extendSubscriptionDirectFromWallet(params?: {
         cost: authoritativeCost,
         durationDays,
         walletBalance: walletAfter,
-        subscriptionType: 'premium',
+        subscriptionType: targetTier,
         subscriptionEndDate: nextSubEnd,
         extraBranches:
           userData.laundries && typeof userData.laundries === 'object'
@@ -281,7 +289,7 @@ export async function extendSubscriptionDirectFromWallet(params?: {
       for (const branchId of result.extraBranches) {
         try {
           await updateDoc(doc(db, 'laundries', branchId), {
-            subscriptionType: 'premium',
+            subscriptionType: targetTier,
             subscriptionEndDate: result.subscriptionEndDate,
             updatedAt: now,
           });
@@ -293,8 +301,8 @@ export async function extendSubscriptionDirectFromWallet(params?: {
 
     try {
       await updateDoc(doc(db, 'owners', currentUserAuth.uid), {
-        paketAktif: 'premium',
-        subscriptionType: 'premium',
+        paketAktif: targetTier,
+        subscriptionType: targetTier,
         subscriptionEndDate: result.subscriptionEndDate,
         walletBalance: result.walletBalance,
         updatedAt: now,

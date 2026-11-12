@@ -17,7 +17,7 @@ import {
 import { auth } from '../firebase';
 import { User } from '../types';
 import { formatDateIndo, formatRupiah } from '../utils/formatters';
-import { HARGA_PREMIUM_BULANAN } from '../utils/subscription';
+import { HARGA_PREMIUM_BULANAN, HARGA_PRO_BULANAN } from '../utils/subscription';
 import { useConfirm, useToast } from './NotificationContext';
 import {
   SUPER_ADMIN_EMAILS,
@@ -57,16 +57,22 @@ const CHANNELS: Array<{ id: ManualTransferChannel; label: string }> = [
 
 function formatAuditActionLabel(action: string): string {
   switch (action) {
+    case 'admin_extend_pro':
+      return 'Aktivasi Pro (Admin)';
     case 'admin_extend_premium':
       return 'Aktivasi Premium (Admin)';
     case 'admin_topup_wallet':
       return 'Top Up Saldo (Admin)';
+    case 'midtrans_extend_pro':
+      return 'Paket Pro (Midtrans)';
     case 'midtrans_extend_premium':
       return 'Paket Premium (Midtrans)';
     case 'midtrans_topup_wallet':
       return 'Top Up Saldo (Midtrans)';
+    case 'wallet_extend_pro':
+      return 'Perpanjang Pro dari Saldo';
     case 'wallet_extend_premium':
-      return 'Perpanjang dari Saldo';
+      return 'Perpanjang Premium dari Saldo';
     case 'wallet_activate_branch':
       return 'Aktivasi Cabang Baru';
     default:
@@ -120,6 +126,14 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
 
   const applySuggestedAmount = (suggested: number | null) => {
     if (!suggested || suggested <= 0) return;
+    if (suggested % HARGA_PRO_BULANAN === 0) {
+      const candidateDays = Math.round(suggested / HARGA_PRO_BULANAN) * 30;
+      if ((DURATION_OPTIONS as readonly number[]).includes(candidateDays)) {
+        setGrantAction('extend_pro');
+        setDurationDays(candidateDays);
+        return;
+      }
+    }
     if (suggested % HARGA_PREMIUM_BULANAN === 0) {
       const candidateDays = Math.round(suggested / HARGA_PREMIUM_BULANAN) * 30;
       if ((DURATION_OPTIONS as readonly number[]).includes(candidateDays)) {
@@ -163,9 +177,16 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
   };
 
   const parsedTopupAmount = Math.max(0, parseInt(topupAmountInput.replace(/[^0-9]/g, ''), 10) || 0);
+  const proCalculatedCost = Math.round((durationDays / 30) * HARGA_PRO_BULANAN);
   const premiumCalculatedCost = Math.round((durationDays / 30) * HARGA_PREMIUM_BULANAN);
+  const isExtendAction = grantAction === 'extend_pro' || grantAction === 'extend_premium';
   const effectiveAmount =
-    grantAction === 'extend_premium' ? premiumCalculatedCost : parsedTopupAmount;
+    grantAction === 'extend_pro'
+      ? proCalculatedCost
+      : grantAction === 'extend_premium'
+      ? premiumCalculatedCost
+      : parsedTopupAmount;
+  const packageLabel = grantAction === 'extend_pro' ? 'Paket Pro' : 'Paket Premium';
 
   const targetSisaHari = foundUser?.subscriptionEndDate
     ? Math.max(0, Math.ceil((foundUser.subscriptionEndDate - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -186,18 +207,16 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
       return;
     }
 
-    const summaryText =
-      grantAction === 'extend_premium'
-        ? `Aktifkan / perpanjang Paket Premium selama ${durationDays} Hari (${formatRupiah(effectiveAmount)}) via ${channel} untuk akun "${foundUser.displayName}" (${foundUser.uid})?`
-        : `Tambahkan saldo dompet sebesar ${formatRupiah(effectiveAmount)} via ${channel} ke akun "${foundUser.displayName}" (${foundUser.uid})?`;
+    const summaryText = isExtendAction
+      ? `Aktifkan / perpanjang ${packageLabel} selama ${durationDays} Hari (${formatRupiah(effectiveAmount)}) via ${channel} untuk akun "${foundUser.displayName}" (${foundUser.uid})?`
+      : `Tambahkan saldo dompet sebesar ${formatRupiah(effectiveAmount)} via ${channel} ke akun "${foundUser.displayName}" (${foundUser.uid})?`;
 
     const confirmed = await confirm({
       title: 'Konfirmasi Aktivasi Server',
       message: summaryText,
-      confirmText:
-        grantAction === 'extend_premium'
-          ? `Aktifkan ${durationDays} Hari`
-          : `Tambah ${formatRupiah(effectiveAmount)}`,
+      confirmText: isExtendAction
+        ? `Aktifkan ${durationDays} Hari`
+        : `Tambah ${formatRupiah(effectiveAmount)}`,
       cancelText: 'Periksa Lagi',
     });
 
@@ -209,7 +228,7 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
         targetUid: foundUser.uid,
         action: grantAction,
         channel,
-        durationDays: grantAction === 'extend_premium' ? durationDays : 0,
+        durationDays: isExtendAction ? durationDays : 0,
         amount: effectiveAmount,
         note: noteInput.trim() || undefined,
       });
@@ -226,14 +245,13 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
       }
       setNoteInput('');
 
-      const replyMsg =
-        grantAction === 'extend_premium'
-          ? `Halo Kak ${updatedTarget.displayName}, terima kasih atas konfirmasi transfer ${channel} sebesar ${formatRupiah(effectiveAmount)}.\n\nPaket Premium (${durationDays} Hari) untuk akun Anda (${updatedTarget.uid}) telah aktif hingga ${
-              updatedTarget.subscriptionEndDate
-                ? formatDateIndo(updatedTarget.subscriptionEndDate)
-                : '-'
-            }. Silakan buka kembali aplikasi Kafelas Laundry.`
-          : `Halo Kak ${updatedTarget.displayName}, terima kasih atas konfirmasi transfer ${channel} sebesar ${formatRupiah(effectiveAmount)}.\n\nSaldo dompet akun Anda (${updatedTarget.uid}) telah ditambahkan dan saat ini berjumlah ${formatRupiah(updatedTarget.walletBalance)}. Silakan buka kembali aplikasi Kafelas Laundry.`;
+      const replyMsg = isExtendAction
+        ? `Halo Kak ${updatedTarget.displayName}, terima kasih atas konfirmasi transfer ${channel} sebesar ${formatRupiah(effectiveAmount)}.\n\n${packageLabel} (${durationDays} Hari) untuk akun Anda (${updatedTarget.uid}) telah aktif hingga ${
+            updatedTarget.subscriptionEndDate
+              ? formatDateIndo(updatedTarget.subscriptionEndDate)
+              : '-'
+          }. Silakan buka kembali aplikasi Kafelas Laundry.`
+        : `Halo Kak ${updatedTarget.displayName}, terima kasih atas konfirmasi transfer ${channel} sebesar ${formatRupiah(effectiveAmount)}.\n\nSaldo dompet akun Anda (${updatedTarget.uid}) telah ditambahkan dan saat ini berjumlah ${formatRupiah(updatedTarget.walletBalance)}. Silakan buka kembali aplikasi Kafelas Laundry.`;
       setLastReplyTemplate(replyMsg);
 
       if (updatedTarget.uid === currentUser.uid) {
@@ -246,8 +264,8 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
       }
 
       toast.success(
-        grantAction === 'extend_premium'
-          ? `Paket Premium ${durationDays} Hari berhasil diaktifkan untuk ${updatedTarget.displayName}.`
+        isExtendAction
+          ? `${packageLabel} ${durationDays} Hari berhasil diaktifkan untuk ${updatedTarget.displayName}.`
           : `Saldo ${formatRupiah(effectiveAmount)} berhasil ditambahkan ke akun ${updatedTarget.displayName}.`
       );
     } catch (err: any) {
@@ -429,7 +447,11 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <div className="text-[11px] text-slate-500 font-medium">Status Paket di Server</div>
                     <div className="text-sm font-extrabold text-slate-900 mt-0.5 tabular-nums">
-                      {foundUser.subscriptionType === 'premium'
+                      {foundUser.subscriptionType === 'pro'
+                        ? targetSisaHari > 0
+                          ? `Pro · ${targetSisaHari} Hari Tersisa`
+                          : 'Pro · Masa Aktif Habis'
+                        : foundUser.subscriptionType === 'premium'
                         ? targetSisaHari > 0
                           ? `Premium · ${targetSisaHari} Hari Tersisa`
                           : 'Premium · Masa Aktif Habis'
@@ -467,29 +489,41 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
                   <span className="text-xs font-extrabold text-slate-900 block">
                     Pilih Jenis Aktivasi
                   </span>
-                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200">
+                  <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setGrantAction('extend_pro')}
+                      className={`min-h-[42px] px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
+                        grantAction === 'extend_pro'
+                          ? 'bg-white text-[#800000] shadow-xs border border-amber-300 ring-1 ring-amber-300/40'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Crown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      <span>Paket Pro</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setGrantAction('extend_premium')}
-                      className={`min-h-[42px] px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      className={`min-h-[42px] px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                         grantAction === 'extend_premium'
                           ? 'bg-white text-[#800000] shadow-xs border border-slate-200/80'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      <Crown className="w-3.5 h-3.5 shrink-0" />
-                      <span>Aktifkan Premium</span>
+                      <Crown className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                      <span>Premium</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setGrantAction('topup_wallet')}
-                      className={`min-h-[42px] px-3 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                      className={`min-h-[42px] px-2 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                         grantAction === 'topup_wallet'
                           ? 'bg-white text-[#800000] shadow-xs border border-slate-200/80'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      <Wallet className="w-3.5 h-3.5 shrink-0" />
+                      <Wallet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       <span>Tambah Saldo</span>
                     </button>
                   </div>
@@ -519,19 +553,20 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
                 </div>
 
                 {/* Conditional Inputs */}
-                {grantAction === 'extend_premium' ? (
+                {isExtendAction ? (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-700">
-                        Durasi Paket Premium
+                        Durasi {packageLabel}
                       </span>
                       <span className="text-xs font-black font-mono tabular-nums text-[#800000]">
-                        {formatRupiah(premiumCalculatedCost)}
+                        {formatRupiah(grantAction === 'extend_pro' ? proCalculatedCost : premiumCalculatedCost)}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       {DURATION_OPTIONS.map((days) => {
-                        const price = Math.round((days / 30) * HARGA_PREMIUM_BULANAN);
+                        const unit = grantAction === 'extend_pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
+                        const price = Math.round((days / 30) * unit);
                         const active = durationDays === days;
                         return (
                           <button

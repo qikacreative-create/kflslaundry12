@@ -238,9 +238,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-rose-100/90 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="font-extrabold text-amber-200 shrink-0">{subPaketNama}</span>
+                  <span className="text-white/40">•</span>
                   <span className="truncate">
-                    {laundries.length > 1 ? `${laundries.length} Cabang Terhubung` : 'Cabang Utama Aktif'}
+                    {laundries.length > 1 ? `${laundries.length} Cabang` : 'Cabang Utama'}
                   </span>
                 </div>
               </div>

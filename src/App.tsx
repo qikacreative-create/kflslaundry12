@@ -28,6 +28,7 @@ import {
   getLaundryLimits,
   EXTRA_BRANCH_PRICE,
   HARGA_PREMIUM_BULANAN,
+  HARGA_PRO_BULANAN,
 } from './utils/subscription';
 import type {
   MidtransVerifyResult,
@@ -2256,24 +2257,28 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
     setActiveTier(resolvedTier);
     StorageService.set('active_subscription_tier', resolvedTier);
 
-    if (result.purpose === 'extend_premium') {
+    if (result.purpose === 'extend_premium' || result.purpose === 'extend_pro') {
+      const tierName = result.purpose === 'extend_pro' ? 'pro' : 'premium';
       const nextBranches = laundries.map((l) => ({
         ...l,
-        subscriptionType: 'premium',
+        subscriptionType: tierName,
         subscriptionEndDate: nextSubEnd,
       }));
       updateLaundries(nextBranches);
     }
 
     if (!result.alreadyCredited) {
-      const amount = result.amount || HARGA_PREMIUM_BULANAN;
+      const defaultAmount = result.purpose === 'extend_pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
+      const amount = result.amount || defaultAmount;
       const days = result.durationDays || 0;
       const historyItem: SubscriptionHistory = {
         id: result.orderId || `sub-${Date.now()}`,
         ownerId: currentUser.uid,
         purchaseDate: Date.now(),
         packageName:
-          result.purpose === 'extend_premium'
+          result.purpose === 'extend_pro'
+            ? `Paket Pro Midtrans (${days || 30} Hari)`
+            : result.purpose === 'extend_premium'
             ? `Paket Premium Midtrans (${days || 30} Hari)`
             : `Top Up Saldo Midtrans (${formatRupiah(amount)})`,
         cost: amount,
@@ -2313,7 +2318,8 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
   const handleExtendSubscription = async (
     packageName: string,
     cost: number,
-    days: number
+    days: number,
+    targetTier: 'premium' | 'pro' = 'premium'
   ): Promise<boolean> => {
     if (!currentUser) return false;
 
@@ -2343,6 +2349,7 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
       const result = await extendSubscriptionDirectFromWallet({
         durationDays: days,
         customCost: cost,
+        targetTier,
       });
 
       const updatedUser: User = {
@@ -3064,25 +3071,30 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
               currentUser={currentUser}
               currentTier={activeTier}
               triggerReason={upgradeTriggerReason}
-              onExtendWithWallet={async () => {
+              onExtendWithWallet={async (targetTier: 'premium' | 'pro' = 'pro') => {
+                const isPro = targetTier === 'pro';
+                const pkgName = isPro ? 'Paket Pro (30 Hari)' : 'Paket Premium (30 Hari)';
+                const cost = isPro ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
                 const ok = await handleExtendSubscription(
-                  'Paket Premium (30 Hari)',
-                  HARGA_PREMIUM_BULANAN,
-                  30
+                  pkgName,
+                  cost,
+                  30,
+                  targetTier
                 );
                 if (ok) {
-                  toast.success('Paket Premium (30 Hari) berhasil diaktifkan!');
+                  toast.success(`${pkgName} berhasil diaktifkan!`);
                 }
                 return ok;
               }}
-              onChoosePayment={(method) =>
+              onChoosePayment={(method, targetTier = 'pro') => {
+                const isPro = targetTier === 'pro';
                 setGlobalPaymentModal({
                   open: true,
-                  purpose: 'extend_premium',
+                  purpose: isPro ? 'extend_pro' : 'extend_premium',
                   method,
-                  nominal: HARGA_PREMIUM_BULANAN,
-                })
-              }
+                  nominal: isPro ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN,
+                });
+              }}
             />
           )}
 

@@ -454,104 +454,133 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <main className="flex-1 p-3.5 sm:p-5 space-y-4 overflow-y-auto max-w-xl md:max-w-2xl mx-auto w-full">
    {/* KARTU RINGKAS PROFIL OWNER, SALDO & KELOLA LANGGANAN */}
    
-{/* KARTU RINGKAS PROFIL OWNER, SALDO & KELOLA LANGGANAN */}
-        {(() => {
-          const limits = getLaundryLimits(currentTier || currentUser.subscriptionType);
-          const isNewcomer = limits.tier === 'newcomer';
+{/* KARTU RINGKAS PROFIL OWNER, SALDO & STATUS LANGGANAN */}
+{/* KARTU RINGKAS PROFIL OWNER, SALDO & STATUS LANGGANAN */}
+{(() => {
+  const limits = getLaundryLimits(currentTier || currentUser.subscriptionType);
+  const isNewcomer = limits.tier === 'newcomer';
 
-          return (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-3 py-2 space-y-1">
-<div className="flex items-center justify-between gap-2">
-  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-    
-    {/* Tombol Edit Profil (Ikon Pensil di Kiri) */}
-    {isOwner ? (
-      <button
-        type="button"
-        onClick={() => {
-          setEditDisplayName(currentUser.displayName || '');
-          setEditNomorTelepon(currentUser.nomorTelepon || '');
-          setShowEditOwnerModal(true);
-        }}
-        title="Edit Profil"
-        className="w-8 h-8 rounded-xl bg-[#800000] hover:bg-[#660000] text-white flex items-center justify-center shrink-0 shadow-xs transition active:scale-95 cursor-pointer"
-      >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-        </svg>
-      </button>
-    ) : (
-      <div className="w-8 h-8 rounded-xl bg-[#800000] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
-        {(currentUser.displayName || 'O').charAt(0).toUpperCase()}
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-2 px-3 space-y-2">
+      
+      {/* 1. BAGIAN ATAS: Profil & Sisa Hari */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {/* Tombol Edit Profil / Avatar */}
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={() => {
+                setEditDisplayName(currentUser.displayName || '');
+                setEditNomorTelepon(currentUser.nomorTelepon || '');
+                setShowEditOwnerModal(true);
+              }}
+              title="Edit Profil"
+              className="w-9 h-9 rounded-xl bg-[#800000] hover:bg-[#660000] text-white flex items-center justify-center shrink-0 shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-[#800000] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+              {(currentUser.displayName || 'O').charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          {/* Detail Info Nama & Keterangan */}
+          <div className="min-w-0 flex-1">
+            <h2 className="font-extrabold text-xs text-slate-900 truncate">
+              {currentUser.displayName || 'Owner Laundry'}
+            </h2>
+            <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
+              {currentUser.role === 'owner' ? 'Owner Utama' : 'Kasir Cabang'} •{' '}
+              {currentUser.emailOrPhone ||
+                currentUser.nomorTelepon ||
+                (typeof activeLaundry?.namaLaundry === 'object'
+                  ? (activeLaundry.namaLaundry as any)?.namaLaundry || "Kafela's Laundry"
+                  : activeLaundry?.namaLaundry || "Kafela's Laundry")}
+            </p>
+          </div>
+        </div>
+
+        {/* Sisa Hari di Ujung Kanan Atas */}
+        <div className="flex flex-col items-end shrink-0 text-right px-2">
+          <div className="text-xm font-bold leading-none">
+            {isNewcomer ? (
+              <span className="text-emerald-700 font-extrabold text-xs sm:text-sm">Gratis</span>
+            ) : sisaHari > 0 ? (
+              <span className={sisaHari <= 5 ? 'text-amber-700 font-black' : 'text-slate-800 font-black'}>
+                {sisaHari} <span className="text-[11px] font-semibold text-slate-500 font-sans">Hari</span>
+              </span>
+            ) : (
+              <span className="text-rose-700 font-black text-xs">Habis (0 Hari)</span>
+            )}
+          </div>
+        </div>
       </div>
-    )}
 
-    {/* Detail Info Nama & Keterangan */}
-    <div className="min-w-0 flex-1">
-      <h2 className="font-extrabold text-xs text-slate-900 truncate">
-        {currentUser.displayName || 'Owner Laundry'}
-      </h2>
+      {/* 2. BAGIAN TENGAH: Label Paket & Tombol Kelola */}
+      <div className="border-slate-100  flex items-center justify-between gap-2.5">
+        <div className="flex flex-col min-w-0 flex-1">
+          <span
+            className={`text-xs font-black tracking-tight ${
+              limits.tier === 'pro'
+                ? 'text-amber-600'
+                : limits.tier === 'premium'
+                ? 'text-[#800000]'
+                : 'text-emerald-700'
+            }`}
+          >
+            {limits.label}
+          </span>
+          <p className="text-[11px] text-slate-500 font-medium truncate">
+            {isNewcomer
+              ? '• 50 nota/bln & 1 cabang'
+              : sisaHari > 0
+              ? `• s/d ${tanggalBerakhirStr}`
+              : '• Masa aktif berakhir'}
+          </p>
+        </div>
 
-      <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
-        {currentUser.role === 'owner' ? 'Owner Utama' : 'Kasir Cabang'} •{' '}
-        {currentUser.emailOrPhone ||
-          currentUser.nomorTelepon ||
-          (typeof activeLaundry?.namaLaundry === 'object'
-            ? (activeLaundry.namaLaundry as any)?.namaLaundry || "Kafela's Laundry"
-            : activeLaundry?.namaLaundry || "Kafela's Laundry")}
-      </p>
-    </div>
-  </div>
+        {/* Tombol Kelola / Ganti (Disamakan tingginya h-9 dan px-3.5) */}
+        <button
+          type="button"
+          onClick={() => onOpenUpgradeModal?.()}
+          className="h-9 px-3.5 rounded-xl bg-[#800000] hover:bg-[#660000] text-white font-extrabold text-xs shrink-0 shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+          <span>{isNewcomer ? 'Upgrade' : 'Kelola'}</span>
+        </button>
+      </div>
 
-  {/* Sisa Hari & Badge Paket (Ditata Vertikal di Ujung Kanan agar Proporsional) */}
-  <div className="flex flex-col items-end shrink-0 text-right gap-0.5">
-    {/* Sisa Hari */}
-    <div className="text-xl font-bold leading-none">
-      {isNewcomer ? (
-        <span className="text-emerald-700 font-extrabold text-xs sm:text-sm">New Comer</span>
-      ) : sisaHari > 0 ? (
-        <span className={sisaHari <= 5 ? 'text-amber-700 font-black' : 'text-slate-800 font-black'}>
-          {sisaHari} <span className="text-[12px] font-semibold text-slate-500 font-sans">Hari</span>
-        </span>
-      ) : (
-        <span className="text-rose-700 font-black">Habis (0 Hari)</span>
+      {/* 3. BAGIAN BAWAH: Strip Saldo & Tombol Isi Saldo (Khusus Owner) */}
+      {isOwner && (
+<div className="border-t border-slate-100 pt-0 flex items-center justify-between gap-2.5">          {/* Badge Saldo Mencolok */}
+          <div className="flex items-center gap-2 bg-[#800000]/5 border border-[#800000]/15 px-3 py-1.5 rounded-xl min-w-0 flex-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#800000]/70 shrink-0">
+              Saldo
+            </span>
+            <div className="h-3.5 w-px bg-[#800000]/20 shrink-0" />
+            <span className="text-sm sm:text-base font-black text-[#800000] font-mono tracking-tight tabular-nums truncate">
+              {formatRupiah(currentUser.walletBalance || 0)}
+            </span>
+          </div>
+
+          {/* Tombol Aksi Tambah Saldo (Tinggi dan padding disamakan h-9 px-3.5) */}
+          <button
+            type="button"
+            onClick={() => setShowTopUpModal(true)}
+            title="Isi Saldo Akun Owner Langsung"
+            className="h-9 px-3.5 rounded-xl bg-[#800000] hover:bg-[#660000] active:bg-[#4d0000] text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm shadow-[#800000]/20 transition active:scale-95 cursor-pointer shrink-0"
+          >
+            <span>(+) Isi Saldo</span>
+          </button>
+        </div>
       )}
     </div>
-
-  </div>
-</div>
-              
-
-              {/* Strip Saldo & Tombol Isi Saldo (Khusus Akun Owner, Sembunyikan Saat Admin Masuk) */}
-              {isOwner && (
-                <div className="border-t border-slate-100 pt-0 flex items-center justify-between gap-2">
-                  {/* Badge Saldo Mencolok */}
-                  <div className="flex items-center gap-2 bg-[#800000]/5 border border-[#800000]/20 px-3 py-1.5 rounded-xl min-w-0 flex-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[#800000]/70 shrink-0">
-                      Saldo
-                    </span>
-                    <div className="h-3.5 w-px bg-[#800000]/20 shrink-0" />
-                    <span className="text-base sm:text-lg font-black text-[#800000] font-mono tracking-tight tabular-nums truncate">
-                      {formatRupiah(currentUser.walletBalance || 0)}
-                    </span>
-                  </div>
-
-                  {/* Tombol Aksi Tambah Saldo Langsung */}
-                  <button
-                    type="button"
-                    onClick={() => setShowTopUpModal(true)}
-                    title="Isi Saldo Akun Owner Langsung"
-                    className="h-9 px-3.5 rounded-xl bg-[#800000] hover:bg-[#660000] active:bg-[#4d0000] text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-[#800000]/20 transition active:scale-95 cursor-pointer shrink-0"
-                  >
-                    <CreditCard className="w-3.5 h-3.5" />
-                    <span>(+) Isi Saldo</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
+  );
+})()}
         
 
         {isSuperAdmin && (

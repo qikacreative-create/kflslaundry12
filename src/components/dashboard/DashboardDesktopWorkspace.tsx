@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Crown,
   DollarSign,
   History,
   Lock,
@@ -295,6 +296,28 @@ export const DashboardDesktopWorkspace: React.FC<DashboardDesktopWorkspaceProps>
                   {resolvedLaundryName}
                 </span>
               )}
+
+              {/* Badge Paket Aktif */}
+              <button
+                type="button"
+                onClick={() => onOpenUpgradeModal?.()}
+                className={`px-2 py-0.5 rounded-md text-[11px] font-extrabold border transition cursor-pointer inline-flex items-center gap-1 shadow-2xs ${
+                  limits.tier === 'pro'
+                    ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                    : limits.tier === 'premium'
+                    ? 'bg-rose-50 text-[#800000] border-rose-200/80 hover:bg-rose-100'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                }`}
+                title={`Paket Langganan Aktif: ${limits.label}. Klik untuk melihat perbandingan paket.`}
+              >
+                <Crown className="w-3 h-3 text-amber-600 shrink-0" />
+                <span>{limits.label}</span>
+                {!isNewcomer && (
+                  <span className="text-[10px] font-semibold text-slate-500">
+                    ({isExpired ? 'Habis' : `${Math.max(0, Math.ceil(((currentUser.subscriptionEndDate || 0) - Date.now()) / (1000 * 60 * 60 * 24)))} Hari`})
+                  </span>
+                )}
+              </button>
             </div>
             <p className="text-xs text-slate-500 font-medium capitalize mt-0.5">
               {formattedToday} • {activeLaundry.alamat || 'Operasional Kasir Aktif'}

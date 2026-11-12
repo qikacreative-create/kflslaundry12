@@ -1,0 +1,6 @@
+{
+  "summary":  "Rencana implementasi penambahan tier Paket Pro (Rp 49.000/bulan) di atas Paket Premium, mencakup kuota 2 cabang langsung aktif, 2 akun login kasir, pemindahan hak akses ekspor Excel & PDF eksklusif untuk Pro, pembaruan modal upgrade langganan, logika server Midtrans/dompet, serta penyesuaian aturan Firestore.",
+  "updatedAt":  "2026-11-12T02:23:31.978509055Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

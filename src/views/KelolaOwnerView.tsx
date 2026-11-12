@@ -270,8 +270,8 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
                   {isNewcomer
                     ? 'Masa Aktif: Paket Newcomer (Gratis Selamanya)'
                     : sisaHari > 0
-                    ? `Masa Aktif: Aktif (${sisaHari} Hari Tersisa)`
-                    : 'Masa Langganan Habis (0 Hari) - Klik untuk Perpanjang'}
+                    ? `Masa Aktif: ${currentLimits.label} (${sisaHari} Hari Tersisa)`
+                    : `Masa Aktif: ${currentLimits.label} Habis (0 Hari) - Klik untuk Perpanjang`}
                 </span>
               </div>
 

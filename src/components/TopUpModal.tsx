@@ -74,29 +74,43 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
           Math.ceil(((currentUser.subscriptionEndDate || Date.now()) - Date.now()) / (1000 * 60 * 60 * 24))
         );
 
+  const isExtendPro = purpose === 'extend_pro';
+  const isExtendPremium = purpose === 'extend_premium';
+  const isExtendAny = isExtendPro || isExtendPremium;
+
   const nominalFinal =
-    purpose === 'extend_premium'
+    isExtendAny
       ? selectedNominal
       : customTopUp
       ? parseInt(customTopUp, 10) || selectedNominal
       : selectedNominal;
 
-  const durationDays = Math.max(30, Math.round(nominalFinal / 27000) * 30);
+  const durationDays = isExtendPro
+    ? Math.max(30, Math.round(nominalFinal / 49000) * 30)
+    : isExtendPremium
+    ? Math.max(30, Math.round(nominalFinal / 27000) * 30)
+    : 0;
 
-  const presets =
-    purpose === 'extend_premium'
-      ? [
-          { nominal: 27000, label: '30 Hari (1 Bulan)' },
-          { nominal: 54000, label: '60 Hari (2 Bulan)' },
-          { nominal: 81000, label: '90 Hari (3 Bulan)' },
-          { nominal: 162000, label: '180 Hari (6 Bulan)' },
-        ]
-      : [
-          { nominal: 25000, label: 'Tambah 1 Cabang' },
-          { nominal: 27000, label: 'Paket Premium 30 Hari' },
-          { nominal: 54000, label: 'Saldo 2 Bulan' },
-          { nominal: 100000, label: 'Isi Saldo Dompet' },
-        ];
+  const presets = isExtendPro
+    ? [
+        { nominal: 49000, label: '30 Hari (1 Bulan Pro)' },
+        { nominal: 98000, label: '60 Hari (2 Bulan Pro)' },
+        { nominal: 147000, label: '90 Hari (3 Bulan Pro)' },
+        { nominal: 294000, label: '180 Hari (6 Bulan Pro)' },
+      ]
+    : isExtendPremium
+    ? [
+        { nominal: 27000, label: '30 Hari (1 Bulan)' },
+        { nominal: 54000, label: '60 Hari (2 Bulan)' },
+        { nominal: 81000, label: '90 Hari (3 Bulan)' },
+        { nominal: 162000, label: '180 Hari (6 Bulan)' },
+      ]
+    : [
+        { nominal: 25000, label: 'Tambah 1 Cabang' },
+        { nominal: 27000, label: 'Paket Premium 30 Hari' },
+        { nominal: 49000, label: 'Paket Pro 30 Hari' },
+        { nominal: 100000, label: 'Isi Saldo Dompet' },
+      ];
 
   const handleCopy = (text: string, bank: string) => {
     navigator.clipboard.writeText(text);
@@ -105,10 +119,11 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
     setTimeout(() => setCopiedBank(null), 2000);
   };
 
-  const waMessage =
-    purpose === 'extend_premium'
-      ? `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi pembayaran perpanjangan Paket Premium (${durationDays} Hari):\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`
-      : `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi top up saldo akun owner:\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`;
+  const waMessage = isExtendPro
+    ? `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi pembayaran perpanjangan Paket Pro (${durationDays} Hari):\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`
+    : isExtendPremium
+    ? `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi pembayaran perpanjangan Paket Premium (${durationDays} Hari):\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`
+    : `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi top up saldo akun owner:\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`;
 
   const handlePayMidtrans = async () => {
     if (purpose === 'topup_wallet' && nominalFinal < 10000) {
@@ -127,7 +142,9 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
       if (result.status === 'settled') {
         onMidtransSettled?.(result);
         toast.success(
-          purpose === 'extend_premium'
+          purpose === 'extend_pro'
+            ? `Paket Pro aktif untuk ${result.durationDays || durationDays} hari!`
+            : purpose === 'extend_premium'
             ? `Paket Premium aktif untuk ${result.durationDays || durationDays} hari!`
             : `Saldo ${formatRupiah(nominalFinal)} berhasil masuk ke dompet Owner!`
         );
@@ -158,7 +175,9 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
       if (result.status === 'settled') {
         onMidtransSettled?.(result);
         toast.success(
-          purpose === 'extend_premium'
+          purpose === 'extend_pro'
+            ? `Pembayaran terverifikasi! Paket Pro aktif ${result.durationDays || durationDays} hari.`
+            : purpose === 'extend_premium'
             ? `Pembayaran terverifikasi! Paket Premium aktif ${result.durationDays || durationDays} hari.`
             : `Pembayaran terverifikasi! Saldo ${formatRupiah(result.amount || nominalFinal)} berhasil ditambahkan.`
         );
@@ -187,11 +206,17 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-sm tracking-wide leading-tight">
-                {purpose === 'extend_premium' ? 'Perpanjang Paket Premium' : 'Isi Saldo Akun Owner'}
+                {isExtendPro
+                  ? 'Aktivasi / Perpanjang Paket Pro'
+                  : isExtendPremium
+                  ? 'Perpanjang Paket Premium'
+                  : 'Isi Saldo Akun Owner'}
               </h3>
               <p className="text-[10px] text-rose-200">
-                {purpose === 'extend_premium'
-                  ? 'Tanpa batas kuota transaksi bulanan & akses penuh kasir'
+                {isExtendPro
+                  ? 'Termasuk 2 cabang langsung, 2 kasir, ekspor Excel & PDF'
+                  : isExtendPremium
+                  ? 'Tanpa batas kuota transaksi bulanan & 1 kasir'
                   : 'Saldo untuk perpanjang paket & tambah cabang'}
               </p>
             </div>
@@ -227,13 +252,28 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
                 {isNewcomer
                   ? 'Newcomer (Gratis)'
                   : effectiveSisaHari > 0
-                  ? `Premium (${effectiveSisaHari} Hari)`
+                  ? `${currentUser.subscriptionType === 'pro' ? 'Pro' : 'Premium'} (${effectiveSisaHari} Hari)`
                   : 'Kedaluwarsa'}
               </strong>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+          <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => {
+                setPurpose('extend_pro');
+                setSelectedNominal(49000);
+                setCustomTopUp('');
+              }}
+              className={`py-2 px-1 rounded-xl font-bold text-[10.5px] transition cursor-pointer text-center ${
+                purpose === 'extend_pro'
+                  ? 'bg-white text-[#800000] shadow-xs ring-1 ring-amber-300'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Paket Pro
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -241,33 +281,37 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
                 setSelectedNominal(27000);
                 setCustomTopUp('');
               }}
-              className={`py-2 px-2.5 rounded-xl font-bold text-[11px] transition cursor-pointer ${
+              className={`py-2 px-1 rounded-xl font-bold text-[10.5px] transition cursor-pointer text-center ${
                 purpose === 'extend_premium'
                   ? 'bg-white text-[#800000] shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Perpanjang Paket
+              Premium
             </button>
             <button
               type="button"
               onClick={() => {
                 setPurpose('topup_wallet');
-                setSelectedNominal(27000);
+                setSelectedNominal(49000);
               }}
-              className={`py-2 px-2.5 rounded-xl font-bold text-[11px] transition cursor-pointer ${
+              className={`py-2 px-1 rounded-xl font-bold text-[10.5px] transition cursor-pointer text-center ${
                 purpose === 'topup_wallet'
                   ? 'bg-white text-[#800000] shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Isi Saldo Dompet
+              Isi Saldo
             </button>
           </div>
 
           <div className="space-y-1.5">
             <label className="font-bold text-slate-800 text-[11px] block">
-              1. {purpose === 'extend_premium' ? 'Pilih Durasi Paket Premium:' : 'Pilih Nominal Top Up:'}
+              1. {isExtendPro
+                ? 'Pilih Durasi Paket Pro (Rp 49.000 / 30 Hari):'
+                : isExtendPremium
+                ? 'Pilih Durasi Paket Premium (Rp 27.000 / 30 Hari):'
+                : 'Pilih Nominal Top Up:'}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {presets.map((item) => {

@@ -84,7 +84,11 @@ export function getSavedFirebaseConfig(): FirebaseCustomConfig {
     const raw = localStorage.getItem(STORAGE_KEY_FB_CONFIG);
     if (raw) {
       const parsed = JSON.parse(raw) as FirebaseCustomConfig;
-      if (parsed && parsed.apiKey && parsed.projectId && parsed.projectId === 'kafilasuci4') {
+      if (
+        parsed &&
+        parsed.apiKey === DEFAULT_KAFELA_FIREBASE_CONFIG.apiKey &&
+        parsed.projectId === 'kafilasuci4'
+      ) {
         return parsed;
       }
       // Jika tersimpan konfigurasi lama, migrasikan langsung ke kafilasuci4

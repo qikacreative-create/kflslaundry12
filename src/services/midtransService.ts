@@ -1,7 +1,7 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
-export type PaymentPurpose = 'extend_premium' | 'topup_wallet';
+export type PaymentPurpose = 'extend_premium' | 'extend_pro' | 'topup_wallet';
 
 export interface MidtransVerifyResult {
   status: 'settled' | 'pending' | 'failed';
