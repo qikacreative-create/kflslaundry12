@@ -68,13 +68,27 @@ function getFirebasePublicConfig(): FirebasePublicConfig {
       process.env.VITE_FIREBASE_API_KEY ||
       process.env.FIREBASE_API_KEY ||
       appletCfg.apiKey ||
-      '',
-    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || appletCfg.authDomain || '',
-    projectId: process.env.VITE_FIREBASE_PROJECT_ID || appletCfg.projectId || '',
-    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || appletCfg.storageBucket || '',
+      'AIzaSyD5iCMLt6XFMI2Wb-JB97a7_DY8tbfLJW4',
+    authDomain:
+      process.env.VITE_FIREBASE_AUTH_DOMAIN ||
+      appletCfg.authDomain ||
+      'kafilasuci4.firebaseapp.com',
+    projectId:
+      process.env.VITE_FIREBASE_PROJECT_ID ||
+      appletCfg.projectId ||
+      'kafilasuci4',
+    storageBucket:
+      process.env.VITE_FIREBASE_STORAGE_BUCKET ||
+      appletCfg.storageBucket ||
+      'kafilasuci4.firebasestorage.app',
     messagingSenderId:
-      process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletCfg.messagingSenderId || '',
-    appId: process.env.VITE_FIREBASE_APP_ID || appletCfg.appId || '',
+      process.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+      appletCfg.messagingSenderId ||
+      '125487710715',
+    appId:
+      process.env.VITE_FIREBASE_APP_ID ||
+      appletCfg.appId ||
+      '1:125487710715:web:337d5032dba2029eb1cb5e',
   };
 }
 

@@ -1660,7 +1660,13 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
     navigateBack();
   };
 
-  const handleAmbilTransaksi = (trx: Transaksi) => {
+  const handleAmbilTransaksi = (
+    trx: Transaksi,
+    paymentOption?: {
+      metodePembayaran: 'Tunai' | 'Non-Tunai';
+      metodePembayaranDetail?: string | null;
+    }
+  ) => {
     const now = Date.now();
     const updated: Transaksi = {
       ...trx,
@@ -1668,11 +1674,26 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
       statusPembayaran: 'Lunas' as const,
       tanggalPengambilan: now,
       tanggalPelunasan: trx.statusPembayaran === 'Lunas' ? (trx.tanggalPelunasan || trx.tanggalMasuk) : now,
+      ...(paymentOption
+        ? {
+            metodePembayaran: paymentOption.metodePembayaran,
+            metodePembayaranDetail:
+              paymentOption.metodePembayaran === 'Non-Tunai'
+                ? paymentOption.metodePembayaranDetail || 'Transfer'
+                : 'Tunai',
+          }
+        : {}),
     };
     updateTransaksiList(
       transaksiList.map((t) => (t.id === trx.id ? updated : t))
     );
     FirebaseSyncService.saveTransaksi(updated).catch(console.error);
+    const caraBayarText = paymentOption
+      ? paymentOption.metodePembayaran === 'Non-Tunai'
+        ? ` (Transfer ${paymentOption.metodePembayaranDetail || ''})`
+        : ' (Tunai)'
+      : '';
+    toast.success(`Cucian ${trx.namaPelanggan} berhasil diambil & dilunasi${caraBayarText}.`);
   };
 
   const handleAmbilBanyakTransaksi = (list: Transaksi[]) => {
@@ -2718,8 +2739,8 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
                 navigateTo('tambah_edit', { transaksiToEdit: trx });
               }}
               onDelete={handleDeleteTransaction}
-              onAmbil={(trx) => {
-                handleAmbilTransaksi(trx);
+              onAmbil={(trx, paymentOption) => {
+                handleAmbilTransaksi(trx, paymentOption);
                 navigateBack();
               }}
             />

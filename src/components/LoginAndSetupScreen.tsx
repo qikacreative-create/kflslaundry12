@@ -21,7 +21,7 @@ import {
   saveFirebaseConfig,
   signupFirebaseWithWA,
 } from '../services/firebaseClient';
-import { PWAInstallButton, PWAInstallFloatingBanner } from '../hooks/usePWAInstall';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface LoginAndSetupScreenProps {
   onStartDemo: (preset: ProfessionPresetKey) => void;
@@ -565,7 +565,9 @@ export const LoginAndSetupScreen: React.FC<LoginAndSetupScreenProps> = ({
 
       </div>
 
-      <PWAInstallFloatingBanner />
+      <div className="fixed bottom-4 right-4 z-40 max-w-xs">
+        <PWAInstallButton variant="standalone" />
+      </div>
 
       {/* MODAL SYARAT & KETENTUAN (Persis tampilkanDialogKetentuan di LoginActivity.kt) */}
       {showSyaratModal && (

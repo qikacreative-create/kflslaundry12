@@ -19,14 +19,32 @@ import {
 
 import firebaseAppletConfig from '../firebase-applet-config.json';
 
-// Konfigurasi resmi proyek Firebase dari env atau firebase-applet-config.json
+// Konfigurasi resmi proyek Firebase kafilasuci4
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseAppletConfig.apiKey || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseAppletConfig.authDomain || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseAppletConfig.projectId || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseAppletConfig.storageBucket || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseAppletConfig.messagingSenderId || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseAppletConfig.appId || '',
+  apiKey:
+    import.meta.env.VITE_FIREBASE_API_KEY ||
+    firebaseAppletConfig.apiKey ||
+    'AIzaSyD5iCMLt6XFMI2Wb-JB97a7_DY8tbfLJW4',
+  authDomain:
+    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
+    firebaseAppletConfig.authDomain ||
+    'kafilasuci4.firebaseapp.com',
+  projectId:
+    import.meta.env.VITE_FIREBASE_PROJECT_ID ||
+    firebaseAppletConfig.projectId ||
+    'kafilasuci4',
+  storageBucket:
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+    firebaseAppletConfig.storageBucket ||
+    'kafilasuci4.firebasestorage.app',
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+    firebaseAppletConfig.messagingSenderId ||
+    '125487710715',
+  appId:
+    import.meta.env.VITE_FIREBASE_APP_ID ||
+    firebaseAppletConfig.appId ||
+    '1:125487710715:web:337d5032dba2029eb1cb5e',
 };
 
 // Initialize Firebase (Singleton app instance)

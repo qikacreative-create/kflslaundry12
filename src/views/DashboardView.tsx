@@ -87,7 +87,13 @@ interface DashboardViewProps {
     | Promise<{ transaksiCount?: number; pelangganCount?: number; layananCount?: number } | void>
     | void;
   onSelesaikanTransaksi: (transaksi: Transaksi) => void;
-  onAmbilTransaksi: (transaksi: Transaksi) => void;
+  onAmbilTransaksi: (
+    transaksi: Transaksi,
+    paymentOption?: {
+      metodePembayaran: 'Tunai' | 'Non-Tunai';
+      metodePembayaranDetail?: string | null;
+    }
+  ) => void;
   onAmbilBanyakTransaksi?: (transaksiList: Transaksi[]) => void;
   onSaveTransitionPickup?: (data: TransitionPickupData) => void;
   onUpdateSettings?: (settings: SettingsData) => void;
@@ -1250,8 +1256,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             transaksi={trxToAmbil}
             alamat={getAlamat(trxToAmbil)}
             onCancel={() => setTrxToAmbil(null)}
-            onConfirm={(trx) => {
-              onAmbilTransaksi(trx);
+            onConfirm={(trx, paymentOption) => {
+              onAmbilTransaksi(trx, paymentOption);
               setTrxToAmbil(null);
             }}
           />

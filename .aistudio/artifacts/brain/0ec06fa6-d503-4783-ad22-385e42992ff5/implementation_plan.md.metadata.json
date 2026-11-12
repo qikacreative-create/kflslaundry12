@@ -1,0 +1,6 @@
+{
+  "summary":  "Rencana implementasi fitur Drag and Drop untuk menyusun urutan layanan laundry di KelolaLayananView.tsx menggunakan HTML5 Drag and Drop API (atau touch handlers pendukung), menggantikan atau melengkapi tombol naik/turun manual.",
+  "updatedAt":  "2026-11-11T09:20:00.234583388Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
