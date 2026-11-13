@@ -65,7 +65,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Bersih */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+        <div className="px-5 py-2 border-b border-slate-100 flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-base font-bold text-slate-900">Pilihan Paket Langganan</h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -96,7 +96,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           {/* Status Saldo & Paket Saat Ini */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <span className="text-slate-500">Paket Aktif:</span>
               <span className="font-bold text-slate-800">
                 {activeTier === 'pro'
                   ? 'Paket Pro'
@@ -107,7 +106,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
             </div>
             {isOwner && (
               <div className="flex items-center gap-1.5 font-mono">
-                <span className="text-slate-500 font-sans">Saldo Akun:</span>
                 <span className="font-bold text-[#800000]">{formatRupiah(walletBalance)}</span>
               </div>
             )}
@@ -250,9 +248,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
             </div>
           </div>
 
-          <p className="text-[11px] text-slate-400 text-center">
-            Paket Newcomer (Gratis) dibatasi 50 nota/bulan dan tanpa akun login kasir.
-          </p>
         </div>
 
         {/* Footer Sederhana */}
