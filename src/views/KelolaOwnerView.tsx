@@ -430,25 +430,6 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
                     </button>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openPaymentModal('extend_premium', 'midtrans', HARGA_Premium_BULANAN)}
-                      className="py-2.5 px-2.5 rounded-xl bg-[#800000] hover:bg-[#660000] text-white font-bold text-[11px] transition shadow-xs active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Zap className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                      <span>Lewat Midtrans</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openPaymentModal('extend_premium', 'manual', HARGA_Premium_BULANAN)}
-                      className="py-2.5 px-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-[11px] transition active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Building2 className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-                      <span>Transfer Biasa</span>
-                    </button>
-                  </div>
                 </div>
 
                 {!isNewcomer && sisaHari <= 0 && onOpenExpiredModal && (

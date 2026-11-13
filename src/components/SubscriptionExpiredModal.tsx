@@ -294,6 +294,32 @@ export const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> =
                 Pilih Cara Perpanjang Sekarang:
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+
+                
+                <button
+                  type="button"
+                  onClick={() => setShowManualTransfer((prev) => !prev)}
+                  className={`py-3 px-3.5 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${
+                    showManualTransfer
+                      ? 'border-[#800000] bg-rose-50 text-[#800000]'
+                      : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 shrink-0" />
+                  <span>Transfer Biasa</span>
+                </button>
+                     <button
+                  type="button"
+                  onClick={() => setShowManualTransfer((prev) => !prev)}
+                  className={`py-3 px-3.5 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${
+                    showManualTransfer
+                      ? 'border-[#800000] bg-rose-50 text-[#800000]'
+                      : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 shrink-0" />
+                  <span>Transfer Biasa</span>
+                </button>
                 <button
                   type="button"
                   disabled={isProcessing}
@@ -313,18 +339,7 @@ export const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> =
                   )}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowManualTransfer((prev) => !prev)}
-                  className={`py-3 px-3.5 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${
-                    showManualTransfer
-                      ? 'border-[#800000] bg-rose-50 text-[#800000]'
-                      : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4 shrink-0" />
-                  <span>Transfer Biasa</span>
-                </button>
+           
               </div>
 
               {pendingOrderId && (

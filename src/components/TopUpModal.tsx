@@ -40,7 +40,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   onMidtransSettled,
   sisaHari,
   initialPurpose = 'topup_wallet',
-  initialMethod = 'midtrans',
+  initialMethod = 'manual', // Diubah default ke 'manual' (Transfer Biasa)
   initialNominal,
 }) => {
   const toast = useToast();
@@ -55,7 +55,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setPurpose(initialPurpose);
-      setPaymentMethod(initialMethod);
+      setPaymentMethod(initialMethod || 'manual'); // Pastikan default manual saat modal dibuka
       setSelectedNominal(initialNominal || 27000);
       setCustomTopUp('');
       setPendingOrderId(null);
@@ -120,10 +120,10 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
   };
 
   const waMessage = isExtendPro
-    ? `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi pembayaran perpanjangan Paket Pro (${durationDays} Hari):\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`
+    ? `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi pembayaran perpanjangan Paket Pro (${durationDays} Hari):\nNama: ${currentUser.displayName}\nID Akun: ${currentUser.uid}\nNominal: ${formatRupiah(nominalFinal)}`
     : isExtendPremium
-    ? `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi pembayaran perpanjangan Paket Premium (${durationDays} Hari):\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`
-    : `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi top up saldo akun owner:\n• Nama: ${currentUser.displayName}\n• ID Akun: ${currentUser.uid}\n• Nominal: ${formatRupiah(nominalFinal)}`;
+    ? `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi pembayaran perpanjangan Paket Premium (${durationDays} Hari):\nNama: ${currentUser.displayName}\nID Akun: ${currentUser.uid}\nNominal: ${formatRupiah(nominalFinal)}`
+    : `Halo Admin Kafelas Laundry,\nSaya ingin konfirmasi top up saldo akun owner:\nNama: ${currentUser.displayName}\nID Akun: ${currentUser.uid}\nNominal: ${formatRupiah(nominalFinal)}`;
 
   const handlePayMidtrans = async () => {
     if (purpose === 'topup_wallet' && nominalFinal < 10000) {
@@ -368,22 +368,6 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setPaymentMethod('midtrans')}
-                className={`p-2.5 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
-                  paymentMethod === 'midtrans'
-                    ? 'border-[#800000] bg-rose-50/90 text-[#800000] ring-1 ring-[#800000]'
-                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
-                }`}
-              >
-                <span className="font-extrabold text-xs flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>Lewat Midtrans</span>
-                </span>
-                <span className="text-[10px] text-slate-500">QRIS, VA Bank, GoPay, DANA</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setPaymentMethod('manual')}
                 className={`p-2.5 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
                   paymentMethod === 'manual'
@@ -396,6 +380,22 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
                   <span>Transfer Biasa</span>
                 </span>
                 <span className="text-[10px] text-slate-500">Transfer Manual BRI / DANA</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('midtrans')}
+                className={`p-2.5 rounded-2xl border text-left transition cursor-pointer flex flex-col gap-0.5 ${
+                  paymentMethod === 'midtrans'
+                    ? 'border-[#800000] bg-rose-50/90 text-[#800000] ring-1 ring-[#800000]'
+                    : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
+                }`}
+              >
+                <span className="font-extrabold text-xs flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>Lewat Midtrans</span>
+                </span>
+                <span className="text-[10px] text-slate-500">QRIS, VA Bank, GoPay, DANA</span>
               </button>
             </div>
           </div>
@@ -445,15 +445,14 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
             </div>
           ) : (
             <div className="space-y-2.5">
-              {/* Info Pemisahan Alur Top-Up vs Perpanjangan Langsung */}
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-[11px] text-blue-900 space-y-1">
                 <span className="font-bold flex items-center gap-1.5 text-blue-800">
                   <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   <span>Pemisahan Alur Top-Up & Perpanjangan:</span>
                 </span>
                 <p className="text-[10px] text-blue-800 leading-relaxed">
-                  <strong>1. Top-Up (Perlu Konfirmasi Admin):</strong> Silakan transfer ke rekening resmi lalu kirim bukti ke WhatsApp Admin agar diverifikasi dan ditambahkan ke saldo dompet.<br />
-                  <strong>2. Perpanjangan (Eksekusi Langsung):</strong> Begitu saldo dompet Anda terisi, Anda bebas memperpanjang paket kapan saja langsung dari tombol &ldquo;Perpanjang dari Saldo&rdquo; tanpa perlu persetujuan admin lagi.
+                  1. <strong>Top-Up:</strong> Silakan transfer ke rekening resmi lalu kirim bukti ke WhatsApp Admin agar diverifikasi.<br />
+                  2. <strong>Perpanjangan:</strong> Begitu saldo dompet Anda terisi, Anda bebas memperpanjang paket kapan saja langsung dari tombol &ldquo;Perpanjang dari Saldo&rdquo;.
                 </p>
               </div>
 
