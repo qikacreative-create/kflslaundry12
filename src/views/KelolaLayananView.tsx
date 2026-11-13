@@ -1,11 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   ArrowLeft,
   Plus,
-  Edit3,
-  Trash2,
-  ArrowUp,
-  ArrowDown,
   X,
   Tag,
   Search,
@@ -17,12 +13,14 @@ import {
   CheckCircle2,
   RotateCcw,
   SlidersHorizontal,
+  GripVertical,
+  Lock,
 } from 'lucide-react';
 import { Layanan, SettingsData } from '../types';
 import { formatRupiah, formatRibuanInput, bersihkanTitik } from '../utils/formatters';
 import { useToast, useConfirm } from '../components/NotificationContext';
 import { isProTier, getLaundryLimits } from '../utils/subscription';
-import { Lock } from 'lucide-react';
+import { SwipeableItem } from '../components/SwipeableItem';
 
 interface KelolaLayananViewProps {
   onBack: () => void;
@@ -40,13 +38,13 @@ interface KelolaLayananViewProps {
 const PRESET_STANDAR_LAUNDRY: Omit<Layanan, 'id' | 'laundryId' | 'urutan'>[] = [
   { nama: 'Cuci Setrika Reguler', harga: 7000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
   { nama: 'Cuci Setrika Kilat', harga: 10000, satuanHarga: 'Kg', durasi: '1 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Cuci Kering Lipat', harga: 5000, satuanHarga: 'Kg', durasi: '2 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Setrika Saja', harga: 4000, satuanHarga: 'Kg', durasi: '2 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
+  { nama: 'Cuci Kering Lipat', harga: 6000, satuanHarga: 'Kg', durasi: '2 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
+  { nama: 'Setrika Saja', harga: 5000, satuanHarga: 'Kg', durasi: '2 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
   { nama: 'Cuci Bedcover Besar', harga: 25000, satuanHarga: 'pcs', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: false },
   { nama: 'Cuci Bedcover Sedang', harga: 20000, satuanHarga: 'pcs', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: false },
   { nama: 'Cuci Selimut Tebal', harga: 15000, satuanHarga: 'pcs', durasi: '2 Hari', satuanDurasi: 'Hari', hitungBebanKerja: false },
   { nama: 'Cuci Sepatu Premium', harga: 25000, satuanHarga: 'Pasang', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: false },
-  { nama: 'Cuci Karpet', harga: 15000, satuanHarga: 'Meter', durasi: '4 Hari', satuanDurasi: 'Hari', hitungBebanKerja: false },
+  { nama: 'Cuci Karpet', harga: 15000, satuanHarga: 'Meter', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: false },
 ];
 
 export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
@@ -174,16 +172,97 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
     });
   };
 
-  const moveItem = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= layananList.length) return;
+  // Drag and Drop state (HTML5 Desktop + Mobile Touch)
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const touchStartIdRef = useRef<string | null>(null);
+  const [touchDraggingId, setTouchDraggingId] = useState<string | null>(null);
+  const [touchTargetId, setTouchTargetId] = useState<string | null>(null);
+
+  const handleReorderById = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const sourceIndex = layananList.findIndex((it) => it.id === sourceId);
+    const targetIndex = layananList.findIndex((it) => it.id === targetId);
+    if (sourceIndex === -1 || targetIndex === -1) return;
 
     const updated = [...layananList];
-    const [moved] = updated.splice(index, 1);
+    const [moved] = updated.splice(sourceIndex, 1);
     updated.splice(targetIndex, 0, moved);
 
     const reordered = updated.map((it, idx) => ({ ...it, urutan: idx }));
     onReorderLayanan(reordered);
+    toast.success('Urutan layanan berhasil diperbarui!');
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverId !== id) {
+      setDragOverId(id);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (draggedId && draggedId !== targetId) {
+      handleReorderById(draggedId, targetId);
+    }
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  const handleTouchDragStart = (e: React.TouchEvent, id: string) => {
+    e.stopPropagation();
+    touchStartIdRef.current = id;
+    setTouchDraggingId(id);
+    setTouchTargetId(id);
+  };
+
+  const handleTouchDragMove = (e: React.TouchEvent) => {
+    if (!touchStartIdRef.current) return;
+    const touch = e.touches[0];
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    const cardElem = elem?.closest('[data-service-id]');
+    if (cardElem) {
+      const targetId = cardElem.getAttribute('data-service-id');
+      if (targetId && targetId !== touchTargetId) {
+        setTouchTargetId(targetId);
+      }
+    }
+  };
+
+  const handleTouchDragEnd = () => {
+    if (touchStartIdRef.current && touchTargetId && touchStartIdRef.current !== touchTargetId) {
+      handleReorderById(touchStartIdRef.current, touchTargetId);
+    }
+    touchStartIdRef.current = null;
+    setTouchDraggingId(null);
+    setTouchTargetId(null);
+  };
+
+  const handleDeleteLayananConfirm = async (lay: Layanan) => {
+    const ok = await confirm({
+      title: 'Hapus Layanan',
+      message: `Yakin ingin menghapus layanan '${lay.nama}'?`,
+      confirmText: 'Ya, Hapus',
+      isDestructive: true,
+    });
+    if (ok) {
+      onDeleteLayanan(lay.id);
+      toast.success(`Layanan '${lay.nama}' berhasil dihapus.`);
+    }
   };
 
   const handleResetToStandard = async () => {
@@ -224,7 +303,7 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800 pb-20">
+    <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800 pb-8">
       {/* Top Header */}
       <header className="bg-[#800000] text-white shadow-lg sticky top-0 z-30 px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -259,92 +338,61 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
       </header>
 
       {/* Main Container */}
-      <div className="max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto w-full px-3 md:px-6 py-3 md:py-6 space-y-3">
+      <div className="max-w-2xl md:max-w-4xl lg:max-w-5xl mx-auto w-full px-2 md:px-6 py-1 md:py-6 space-y-1">
         {/* Search & Filter Controls */}
-        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs space-y-2.5">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama layanan, tarif, atau satuan..."
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#800000] transition"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+<div className="bg-white p-1 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between gap-3">
+  
+  {/* 1. Kolom Input Pencarian (Flex-1 agar menyesuaikan ruang sisa) */}
+  <div className="relative flex-1 min-w-0">
+    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+    <input
+      type="text"
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      placeholder="Cari nama layanan, tarif, atau satuan..."
+      className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#800000] transition"
+    />
+    {searchQuery && (
+      <button
+        type="button"
+        onClick={() => setSearchQuery('')}
+        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    )}
+  </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs no-scrollbar">
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition text-[11px] ${
-                activeFilter === 'all'
-                  ? 'bg-[#800000] text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Semua ({layananList.length})
-            </button>
-            <button
-              onClick={() => setActiveFilter('kg')}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition text-[11px] flex items-center gap-1 ${
-                activeFilter === 'kg'
-                  ? 'bg-[#800000] text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <Scale className="w-3 h-3" />
-              <span>Kiloan (Kg)</span>
-            </button>
-            <button
-              onClick={() => setActiveFilter('satuan')}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition text-[11px] flex items-center gap-1 ${
-                activeFilter === 'satuan'
-                  ? 'bg-[#800000] text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <Shirt className="w-3 h-3" />
-              <span>Satuan / Pcs</span>
-            </button>
-            <button
-              onClick={() => setActiveFilter('beban')}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition text-[11px] flex items-center gap-1 ${
-                activeFilter === 'beban'
-                  ? 'bg-[#800000] text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Beban Staf Aktif</span>
-            </button>
-          </div>
-        </div>
+  {/* 2. Informasi Jumlah Layanan & Tombol Paket Standar (Di sebelah kanan) */}
+  <div className="flex items-center gap-3 shrink-0 text-xs">
+    <span className="font-medium text-[11px] text-slate-500 hidden sm:inline">
+      Menampilkan <strong className="text-slate-800">{filteredList.length}</strong> dari {layananList.length}
+    </span>
 
-        {/* Action helper bar */}
-        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-          <span className="font-medium text-[11px]">
-            Menampilkan <strong className="text-slate-800">{filteredList.length}</strong> dari {layananList.length} layanan
-          </span>
-          <button
-            onClick={handleResetToStandard}
-            className="flex items-center gap-1 text-[11px] font-bold text-[#800000] hover:text-[#660000] transition hover:underline"
-          >
-            <Sparkles className="w-3 h-3 text-amber-500" />
-            <span>+ Paket Standar Laundry</span>
-          </button>
+    <button
+      type="button"
+      onClick={handleResetToStandard}
+      className="flex items-center gap-1 text-[11px] font-bold text-[#800000] hover:text-[#660000] bg-rose-50/80 border border-rose-100 hover:bg-rose-100 px-3 py-2 rounded-xl transition cursor-pointer shrink-0"
+    >
+      <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+      <span>+ Paket Standar</span>
+    </button>
+  </div>
+
+</div>
+
+        {/* Tip Banner Panduan Klik Edit, Swipe & Drag */}
+        <div className="bg-gradient-to-r from-amber-50 to-rose-50/70 border border-amber-200/80 rounded-2xl p-2 px-2 flex items-center justify-between gap-2 text-[11px] text-amber-950 shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0">
+          
+            <span className="leading-tight">
+              <strong>Klik</strong> untuk edit. <strong>Tarik </strong> untuk ubah urutan, <strong>geser kanan</strong> untuk hapus.
+            </span>
+          </div>
         </div>
 
         {/* Services List Card Stack */}
-        <main className="space-y-2.5">
+        <main className="space-y-1">
           {filteredList.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center border border-slate-200 shadow-2xs space-y-3">
               <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
@@ -380,100 +428,76 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
             filteredList.map((lay, idx) => {
               const isKg = lay.satuanHarga.toLowerCase() === 'kg';
               const isExpress = lay.durasi.toLowerCase().includes('jam') || lay.durasi.toLowerCase().includes('1 hari');
+              const isBeingDragged = draggedId === lay.id || touchDraggingId === lay.id;
+              const isDropTarget = (dragOverId === lay.id || touchTargetId === lay.id) && !isBeingDragged;
 
-              return (
-                <div
-                  key={lay.id}
-                >
-<div className="flex flex-col gap-1 px-2 py-1 bg-white border border-slate-200 rounded-2xl shadow-2xs">
-  {/* Baris 1: Nama Layanan & Harga (Tulisan diperkecil) */}
-  <div className="flex items-center justify-between gap-3 min-w-0">
-    <h4 className="font-bold text-xs text-slate-900 truncate">{lay.nama}</h4>
-    <div className="text-right shrink-0">
-      <span className="text-sm font-black text-[#800000] tracking-tight">{formatRupiah(lay.harga)}</span>
-      <span className="text-[9px] font-medium text-slate-400 ml-1">/ {lay.satuanHarga}</span>
-    </div>
-  </div>
-
-  {/* Baris 2: Tag Info & Tombol Aksi (Garis lebih dekat ke atas dengan -mt-1) */}
-  <div className="flex items-center justify-between gap-2 pt-1 -mt-1 border-t border-slate-100 flex-wrap">
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {/* Duration Pill */}
-      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-lg flex items-center gap-1 ${
-        isExpress ? 'bg-amber-100/80 text-amber-800' : 'bg-slate-100 text-slate-600'
-      }`}>
-        {isExpress ? <Zap className="w-3 h-3 text-amber-600" /> : <Clock className="w-3 h-3 text-slate-400" />}
-        <span>{lay.durasi}</span>
-      </span>
-
-      {/* Staff workload indicator toggle */}
-      <button
-        type="button"
-        onClick={() => handleToggleBeban(lay)}
-        title="Klik untuk mengubah status hitungan beban staf"
-        className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border transition flex items-center gap-1 ${
-          lay.hitungBebanKerja
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-            : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
-        }`}
+             return (
+  <div
+    key={lay.id}
+    data-service-id={lay.id}
+    draggable={!searchQuery}
+    onDragStart={(e) => handleDragStart(e, lay.id)}
+    onDragOver={(e) => handleDragOver(e, lay.id)}
+    onDrop={(e) => handleDrop(e, lay.id)}
+    onDragEnd={handleDragEnd}
+    className={`transition-all duration-150 ${
+      isBeingDragged ? 'opacity-40 scale-[0.98] ring-2 ring-[#800000] rounded-2xl' : ''
+    } ${isDropTarget ? 'border-t-4 border-t-[#800000] -mt-1 pt-1' : ''}`}
+  >
+<SwipeableItem
+      id={lay.id}
+      onSwipeRightDelete={() => handleDeleteLayananConfirm(lay)}
+      deleteLabel="Hapus Layanan"
+      threshold={90}
+    >
+      <div
+        onClick={() => openEditModal(lay)}
+        title="Klik untuk mengedit layanan"
+        className="flex items-center gap-2 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xs hover:border-[#800000]/40 hover:bg-slate-50/70 transition cursor-pointer active:scale-[0.99]"
       >
-        <span className={`w-1.5 h-1.5 rounded-full ${lay.hitungBebanKerja ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-        <span>{lay.hitungBebanKerja ? 'Beban Staf Aktif' : 'Tanpa Beban'}</span>
-      </button>
-    </div>
 
-    {/* Action Buttons */}
-    <div className="flex items-center gap-1.5">
-      <div className="flex bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+
+        {/* 2. Badge Durasi */}
+        <span className={`text-[10px] font-semibold px-1 py-0.5 rounded-lg flex items-center gap-1 shrink-0 ${
+          isExpress ? 'bg-amber-100/80 text-amber-800' : 'bg-slate-100 text-slate-600'
+        }`}>
+          <span>{lay.durasi}</span>
+        </span>
+
+
+        {/* 3. Nama Layanan (Flex-1 agar mengisi ruang tengah & bisa berdampingan dengan harga) */}
+        <h4 className="font-bold text-xs text-slate-900 truncate flex-1 min-w-0">
+          {lay.nama}
+        </h4>
+
+        {/* 4. Harga & Satuan (Rata Kanan di ujung menggunakan ml-auto) */}
+        <div className="text-right shrink-0 ml-auto pl-2">
+          <span className="text-xs sm:text-sm font-black text-[#800000] tracking-tight">{formatRupiah(lay.harga)}</span>
+          <span className="text-[9px] font-medium text-slate-400 ml-1">/ {lay.satuanHarga}</span>
+        </div>
+                {/* 1. Staff Workload Toggle Button */}
         <button
-          disabled={idx === 0}
-          onClick={() => moveItem(idx, 'up')}
-          title="Pindah ke atas"
-          className="px-1.5 py-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 disabled:opacity-20 transition flex items-center justify-center border-r border-slate-200"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleBeban(lay);
+          }}
+          title="Klik untuk mengubah status hitungan beban staf"
+          className={`w-5 h-5 rounded-lg border transition flex items-center justify-center cursor-pointer shrink-0 ${
+            lay.hitungBebanKerja
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+              : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
+          }`}
         >
-          <ArrowUp className="w-3.5 h-3.5" />
+          <span className={`w-2 h-2 rounded-full ${lay.hitungBebanKerja ? 'bg-emerald-500' : 'bg-slate-300'}`} />
         </button>
-        <button
-          disabled={idx === layananList.length - 1}
-          onClick={() => moveItem(idx, 'down')}
-          title="Pindah ke bawah"
-          className="px-1.5 py-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 disabled:opacity-20 transition flex items-center justify-center"
-        >
-          <ArrowDown className="w-3.5 h-3.5" />
-        </button>
+
       </div>
 
-      <button
-        onClick={() => openEditModal(lay)}
-        className="p-1.5 rounded-xl text-slate-600 hover:text-[#800000] hover:bg-rose-50 border border-slate-200 bg-white shadow-2xs transition active:scale-95 flex items-center justify-center"
-        title="Edit Layanan"
-      >
-        <Edit3 className="w-3.5 h-3.5" />
-      </button>
-
-      <button
-        onClick={async () => {
-          const ok = await confirm({
-            title: 'Hapus Layanan',
-            message: `Yakin ingin menghapus layanan '${lay.nama}'?`,
-            confirmText: 'Ya, Hapus',
-            isDestructive: true,
-          });
-          if (ok) {
-            onDeleteLayanan(lay.id);
-            toast.success(`Layanan '${lay.nama}' berhasil dihapus.`);
-          }
-        }}
-        className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-slate-200 bg-white shadow-2xs transition active:scale-95 flex items-center justify-center cursor-pointer"
-        title="Hapus Layanan"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
-    </div>
+      
+    </SwipeableItem>
   </div>
-</div>
-                </div>
-              );
+);
             })
           )}
         </main>
@@ -565,37 +589,7 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs font-black text-[#800000] focus:ring-2 focus:ring-[#800000] focus:outline-none transition shadow-2xs"
                     />
                   </div>
-                  {/* Quick increment buttons */}
-                  <div className="flex items-center gap-1 mt-1.5">
-                    <button
-                      type="button"
-                      onClick={() => addNominal(1000)}
-                      className="flex-1 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-600 transition active:scale-95 cursor-pointer"
-                    >
-                      +1.000
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addNominal(5000)}
-                      className="flex-1 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-600 transition active:scale-95 cursor-pointer"
-                    >
-                      +5.000
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNominal(7000)}
-                      className="px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-[10px] font-bold text-[#800000] transition active:scale-95 cursor-pointer"
-                    >
-                      7rb
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNominal(10000)}
-                      className="px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-[10px] font-bold text-[#800000] transition active:scale-95 cursor-pointer"
-                    >
-                      10rb
-                    </button>
-                  </div>
+           
                 </div>
 
                 {/* Unit Select */}
@@ -609,10 +603,8 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-[#800000] focus:outline-none transition shadow-2xs"
                   >
                     <option value="Kg">Kg (Kilogram)</option>
-                    <option value="pcs">Pcs (Buah / Lembar)</option>
-                    <option value="Meter">Meter (Karpet / Tirai)</option>
-                    <option value="Pasang">Pasang (Sepatu / Sandal)</option>
-                    <option value="Satuan">Satuan</option>
+                    <option value="pcs">Pcs </option>
+                    <option value="M">Meter </option>
                   </select>
                   <p className="text-[10px] text-slate-400 mt-1">
                     {satuanHarga === 'Kg' ? 'Dihitung per kilogram berat timbangan' : 'Dihitung per barang satuan'}
@@ -650,17 +642,7 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
 
                 {/* Duration shortcut chips */}
                 <div className="flex gap-1.5 mt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDurasiAngka('3');
-                      setDurasiSatuan('Jam');
-                    }}
-                    className="flex-1 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center gap-1 transition"
-                  >
-                    <Zap className="w-2.5 h-2.5 text-amber-600" />
-                    <span>3 Jam</span>
-                  </button>
+               
                   <button
                     type="button"
                     onClick={() => {

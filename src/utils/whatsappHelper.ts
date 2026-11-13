@@ -50,6 +50,45 @@ export function buildWhatsAppReceiptCaption(
   )}* - *${statusFinal}*${sisaInfo}). Terima kasih.`;
 }
 
+export function buildWhatsAppSelesaiMessage(
+  transaksi: Transaksi,
+  laundryName: string = 'Kafelas Laundry',
+  laundryAddress?: string,
+  laundryPhone?: string
+): string {
+  const sisa = Math.max(0, (transaksi.totalHarga || 0) - (transaksi.jumlahDp || 0));
+  const isLunas = transaksi.statusPembayaran === 'Lunas' || sisa <= 0;
+  const statusPembayaranText = isLunas
+    ? 'LUNAS'
+    : `BELUM LUNAS (Sisa: ${formatRupiah(sisa)})`;
+
+  const itemDetails =
+    Array.isArray(transaksi.items) && transaksi.items.length > 0
+      ? transaksi.items
+          .map(
+            (item) =>
+              `• ${item.namaLayanan || 'Layanan'}: ${item.berat} ${item.satuan || ''}`
+          )
+          .join('\n')
+      : '• Layanan Laundry';
+
+  return `*${laundryName.toUpperCase()}*
+Pemberitahuan Cucian Selesai ✨
+
+Halo Kak *${transaksi.namaPelanggan || 'Pelanggan'}*,
+Kabar gembira! Cucian Anda telah selesai diproses, rapi, wangi, dan siap untuk diambil.
+
+📋 *Rincian Nota:*
+• No. Nota: *${transaksi.nomorTransaksi || '-'}*
+• Layanan:
+${itemDetails}
+• Total Biaya: *${formatRupiah(transaksi.totalHarga)}*
+• Status Pembayaran: *${statusPembayaranText}*
+
+${laundryAddress ? `📍 Alamat: ${laundryAddress}\n` : ''}${laundryPhone ? `📞 Kontak: ${laundryPhone}\n` : ''}
+Terima kasih telah mempercayakan pakaian Anda kepada ${laundryName}! 🙏`;
+}
+
 export function openDirectWhatsAppChat(
   phone: string,
   message: string,

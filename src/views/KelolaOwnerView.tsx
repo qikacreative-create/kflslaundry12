@@ -247,6 +247,103 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
 
         {/* GRID UTAMA: 2 Kolom Kompak */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                 {/* KOLOM 2: DAFTAR CABANG LAUNDRY */}
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between">
+            <div>
+              <div className="bg-[#800000] text-white p-3.5 flex items-center justify-between shadow-inner">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-white" />
+                  <span className="font-bold text-xs tracking-wide">
+                    ({laundries.length} Cabang)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddBranchModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                    title="Tambah cabang baru (Rp 25.000 per cabang)"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Cabang </span>
+                  </button>
+                  <button
+                    onClick={() => setShowBranches(!showBranches)}
+                    className="p-1 rounded-full hover:bg-white/20 transition cursor-pointer"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showBranches ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {showBranches && (
+                <div className="divide-y divide-slate-100 p-2.5 max-h-72 overflow-y-auto">
+                  {laundries.map((lnd) => {
+                    const isActive = lnd.id === activeLaundryId;
+                    return (
+                      <div
+                        key={lnd.id}
+                        className={`p-3 rounded-xl flex items-center justify-between gap-2 transition ${
+                          isActive ? 'bg-rose-50/80 border border-rose-200/60 shadow-2xs' : 'hover:bg-slate-50 border border-transparent'
+                        }`}
+                      >
+                        <div
+                          onClick={() => onSelectLaundry(lnd.id)}
+                          className="flex-1 cursor-pointer truncate"
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="font-bold text-xs text-slate-900 truncate">
+                              {typeof lnd.namaLaundry === 'object' ? (lnd.namaLaundry as any)?.namaLaundry || "Kafela's Laundry" : (lnd.namaLaundry || "Kafela's Laundry")}
+                            </span>
+                            {isActive && (
+                              <span className="text-[10px] font-bold text-emerald-700 shrink-0">
+                                · Aktif
+                              </span>
+                            )}
+                          </div>
+                          {lnd.alamat && (
+                            <p className="text-[10px] text-slate-500 truncate mt-0.5 font-medium">{lnd.alamat}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => setEditingLaundry(lnd)}
+                            className="p-2 rounded-xl text-slate-500 hover:text-[#800000] hover:bg-rose-50 transition cursor-pointer"
+                            title="Edit Cabang"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          {laundries.length > 1 && (
+                            <button
+                              onClick={async () => {
+                                const ok = await confirm({
+                                  title: 'Hapus Cabang',
+                                  message: `Yakin ingin menghapus cabang '${lnd.namaLaundry}'?`,
+                                  confirmText: 'Hapus',
+                                  isDestructive: true,
+                                });
+                                if (ok) {
+                                  onDeleteLaundry(lnd.id);
+                                  toast.success(`Cabang '${lnd.namaLaundry}' dihapus.`);
+                                }
+                              }}
+                              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                              title="Hapus Cabang"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
           
        {/* KOLOM 1: DOMPET & LANGGANAN (Dominan Putih & Maroon) */}
           <div className="bg-white text-slate-800 rounded-2xl shadow-md overflow-hidden border border-slate-200 flex flex-col justify-between">
@@ -396,102 +493,7 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
               </a>
             </div>
           </div>
-          {/* KOLOM 2: DAFTAR CABANG LAUNDRY */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between">
-            <div>
-              <div className="bg-[#800000] text-white p-3.5 flex items-center justify-between shadow-inner">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-white" />
-                  <span className="font-bold text-xs tracking-wide">
-                    ({laundries.length} Cabang)
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddBranchModal(true)}
-                    className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-2xs"
-                    title="Tambah cabang baru (Rp 25.000 per cabang)"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Cabang </span>
-                  </button>
-                  <button
-                    onClick={() => setShowBranches(!showBranches)}
-                    className="p-1 rounded-full hover:bg-white/20 transition cursor-pointer"
-                  >
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showBranches ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-              </div>
-
-              {showBranches && (
-                <div className="divide-y divide-slate-100 p-2.5 max-h-72 overflow-y-auto">
-                  {laundries.map((lnd) => {
-                    const isActive = lnd.id === activeLaundryId;
-                    return (
-                      <div
-                        key={lnd.id}
-                        className={`p-3 rounded-xl flex items-center justify-between gap-2 transition ${
-                          isActive ? 'bg-rose-50/80 border border-rose-200/60 shadow-2xs' : 'hover:bg-slate-50 border border-transparent'
-                        }`}
-                      >
-                        <div
-                          onClick={() => onSelectLaundry(lnd.id)}
-                          className="flex-1 cursor-pointer truncate"
-                        >
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="font-bold text-xs text-slate-900 truncate">
-                              {typeof lnd.namaLaundry === 'object' ? (lnd.namaLaundry as any)?.namaLaundry || "Kafela's Laundry" : (lnd.namaLaundry || "Kafela's Laundry")}
-                            </span>
-                            {isActive && (
-                              <span className="text-[10px] font-bold text-emerald-700 shrink-0">
-                                · Aktif
-                              </span>
-                            )}
-                          </div>
-                          {lnd.alamat && (
-                            <p className="text-[10px] text-slate-500 truncate mt-0.5 font-medium">{lnd.alamat}</p>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => setEditingLaundry(lnd)}
-                            className="p-2 rounded-xl text-slate-500 hover:text-[#800000] hover:bg-rose-50 transition cursor-pointer"
-                            title="Edit Cabang"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          {laundries.length > 1 && (
-                            <button
-                              onClick={async () => {
-                                const ok = await confirm({
-                                  title: 'Hapus Cabang',
-                                  message: `Yakin ingin menghapus cabang '${lnd.namaLaundry}'?`,
-                                  confirmText: 'Hapus',
-                                  isDestructive: true,
-                                });
-                                if (ok) {
-                                  onDeleteLaundry(lnd.id);
-                                  toast.success(`Cabang '${lnd.namaLaundry}' dihapus.`);
-                                }
-                              }}
-                              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
-                              title="Hapus Cabang"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
+   
         </div>
       </main>
 
