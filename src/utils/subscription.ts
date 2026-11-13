@@ -155,6 +155,27 @@ export function canDowngradeToNewcomer(): boolean {
   return false;
 }
 
+/**
+ * Menghitung tanggal berakhirnya langganan baru:
+ * - Jika paket tetap sama (Premium -> Premium atau Pro -> Pro), tambahkan durasi ke sisa hari yang ada.
+ * - Jika berpindah paket (mis. Premium -> Pro, Pro -> Premium, atau Newcomer -> berbayar),
+ *   hanguskan sisa hari paket sebelumnya dan mulai masa aktif baru dari waktu sekarang.
+ */
+export function calculateNextSubscriptionEndDate(params: {
+  currentTier?: string | null;
+  currentEndDate?: number | null;
+  targetTier: 'premium' | 'pro';
+  durationDays: number;
+  now?: number;
+}): number {
+  const now = params.now ?? Date.now();
+  const currentNormalized = normalizeTier(params.currentTier);
+  const isSameTier = currentNormalized === params.targetTier;
+  const currentEnd = typeof params.currentEndDate === 'number' ? params.currentEndDate : 0;
+  const baseEnd = isSameTier ? Math.max(now, currentEnd) : now;
+  return baseEnd + params.durationDays * 24 * 60 * 60 * 1000;
+}
+
 export function getLaundryLimits(rawTier?: string | null): LaundrySubscriptionLimits {
   const tier = normalizeTier(rawTier);
   return LAUNDRY_TIER_CONFIG[tier] || LAUNDRY_TIER_CONFIG.pro || LAUNDRY_TIER_CONFIG.premium;

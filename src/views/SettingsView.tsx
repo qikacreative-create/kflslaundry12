@@ -27,13 +27,21 @@ import {
   Cloud,
   RefreshCw,
   CheckCircle2,
+  Wallet,
 } from 'lucide-react';
 import { SettingsData, User, Laundry } from '../types';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import { formatDateIndo, formatRupiah } from '../utils/formatters';
 import { StorageService, defaultOwnerUser } from '../utils/storage';
 import { useToast } from '../components/NotificationContext';
-import { isProTier, normalizeTier, getLaundryLimits } from '../utils/subscription';
+import {
+  isProTier,
+  normalizeTier,
+  getLaundryLimits,
+  HARGA_PREMIUM_BULANAN,
+  HARGA_PRO_BULANAN,
+  calculateNextSubscriptionEndDate,
+} from '../utils/subscription';
 import {
   getSavedBluetoothPrinter,
   disconnectBluetoothPrinter,
@@ -67,6 +75,12 @@ interface SettingsViewProps {
   onOpenKelolaKasir: () => void;
   onOpenApkModal: () => void;
   onOpenUpgradeModal?: (reason?: string) => void;
+  onExtendSubscription?: (
+    packageName: string,
+    cost: number,
+    days: number,
+    targetTier?: 'premium' | 'pro'
+  ) => Promise<boolean> | boolean | void;
   onTopUpWallet?: (nominal: number) => void;
   onMidtransSettled?: (result: MidtransVerifyResult) => void;
   onSelfAccountUpdated?: (updated: SelfAccountBillingSnapshot) => void;
@@ -89,6 +103,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenKelolaKasir,
   onOpenApkModal,
   onOpenUpgradeModal,
+  onExtendSubscription,
   onMidtransSettled,
   onSelfAccountUpdated,
   onUpdateOwnerProfile,
@@ -121,11 +136,74 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const [showEditOwnerModal, setShowEditOwnerModal] = useState(false);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [topUpInitialNominal, setTopUpInitialNominal] = useState<number | undefined>(undefined);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [extendTargetTier, setExtendTargetTier] = useState<'premium' | 'pro'>(() =>
+    normalizeTier(currentTier || currentUser.subscriptionType) === 'pro' ? 'pro' : 'premium'
+  );
+  const [extendMonths, setExtendMonths] = useState<number>(1);
+  const [isExtendingSubscription, setIsExtendingSubscription] = useState(false);
   const [showMidtransAdminModal, setShowMidtransAdminModal] = useState(false);
   const [showSuperAdminBillingModal, setShowSuperAdminBillingModal] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState(currentUser.displayName || '');
   const [editNomorTelepon, setEditNomorTelepon] = useState(currentUser.nomorTelepon || '');
+
+  const currentNormalizedTier = normalizeTier(currentTier || currentUser.subscriptionType);
+
+  const handleOpenQuickExtend = () => {
+    setExtendTargetTier(currentNormalizedTier === 'pro' ? 'pro' : 'premium');
+    setExtendMonths(1);
+    setShowExtendModal(true);
+  };
+
+  const handleConfirmQuickExtend = async () => {
+    if (!onExtendSubscription) {
+      setShowExtendModal(false);
+      onOpenUpgradeModal?.();
+      return;
+    }
+
+    const days = extendMonths * 30;
+    const unitPrice = extendTargetTier === 'pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
+    const cost = extendMonths * unitPrice;
+    const targetLabel = extendTargetTier === 'pro' ? 'Paket Pro' : 'Paket Premium';
+    const walletBalance = currentUser.walletBalance || 0;
+
+    if (walletBalance < cost) {
+      toast.warning(
+        `Saldo Anda (${formatRupiah(walletBalance)}) belum mencukupi untuk ${targetLabel} (${formatRupiah(cost)}). Silakan isi saldo terlebih dahulu.`
+      );
+      setShowExtendModal(false);
+      setTopUpInitialNominal(cost);
+      setShowTopUpModal(true);
+      return;
+    }
+
+    setIsExtendingSubscription(true);
+    try {
+      const packageName = `${targetLabel} (${days} Hari)`;
+      const ok = await onExtendSubscription(packageName, cost, days, extendTargetTier);
+      if (ok !== false) {
+        const wasDifferentPaidTier =
+          currentNormalizedTier !== 'newcomer' &&
+          currentNormalizedTier !== extendTargetTier &&
+          sisaHari > 0;
+        setShowExtendModal(false);
+        if (wasDifferentPaidTier) {
+          toast.success(
+            `${targetLabel} aktif ${days} hari! Masa aktif paket sebelumnya telah digantikan.`
+          );
+        } else {
+          toast.success(
+            `${targetLabel} berhasil diperpanjang +${days} hari dari saldo!`
+          );
+        }
+      }
+    } finally {
+      setIsExtendingSubscription(false);
+    }
+  };
 
   // State pemeriksaan & penerapan pembaruan aplikasi
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -461,7 +539,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const isNewcomer = limits.tier === 'newcomer';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-2 px-3 space-y-2">
+    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm py-2 px-2 space-y-2">
       
       {/* 1. BAGIAN ATAS: Profil & Sisa Hari */}
       <div className="flex items-center justify-between gap-3">
@@ -522,7 +600,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* 2. BAGIAN TENGAH: Label Paket & Tombol Kelola */}
       <div className="border-slate-100  flex items-center justify-between gap-2.5">
-        <div className="flex flex-col min-w-0 flex-1">
+
+
+        <div className="flex flex-col px-2 min-w-0 flex-1">
           <span
             className={`text-xs font-black tracking-tight ${
               limits.tier === 'pro'
@@ -543,21 +623,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </p>
         </div>
 
-        {/* Tombol Kelola / Ganti (Disamakan tingginya h-9 dan px-3.5) */}
-        <button
-          type="button"
-          onClick={() => onOpenUpgradeModal?.()}
-          className="h-9 px-3.5 rounded-xl bg-[#800000] hover:bg-[#660000] text-white font-extrabold text-xs shrink-0 shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-          <span>{isNewcomer ? 'Upgrade' : 'Kelola'}</span>
-        </button>
+
+
+        
+          <div className=" items-center gap-1.5 ">
+            {/* Tombol Aksi Tambah Saldo */}
+      
+
+            {/* Tombol Perpanjang Langganan (Langsung Potong Saldo Sesuai Paket) */}
+            <button
+              type="button"
+              onClick={handleOpenQuickExtend}
+              title={
+                limits.tier === 'pro'
+                  ? `Perpanjang Paket Pro (${formatRupiah(HARGA_PRO_BULANAN)} / 30 Hari)`
+                  : limits.tier === 'premium'
+                  ? `Perpanjang Paket Premium (${formatRupiah(HARGA_PREMIUM_BULANAN)} / 30 Hari)`
+                  : 'Aktifkan & Perpanjang Langganan dari Saldo'
+              }
+           className="h-9 px-3.5 rounded-xl bg-[#800000] hover:bg-[#660000] active:bg-[#4d0000] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-[#800000]/20 transition active:scale-95 cursor-pointer shrink-0"            >
+
+              <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+              <span>Perpanjang</span>
+            </button>
+          </div>
       </div>
 
-      {/* 3. BAGIAN BAWAH: Strip Saldo & Tombol Isi Saldo (Khusus Owner) */}
+      {/* 3. BAGIAN BAWAH: Strip Saldo & Tombol Isi Saldo + Perpanjang Langganan (Khusus Owner) */}
       {isOwner && (
-<div className="border-t border-slate-100 pt-0 flex items-center justify-between gap-2.5">          {/* Badge Saldo Mencolok */}
-          <div className="flex items-center gap-2 bg-[#800000]/5 border border-[#800000]/15 px-3 py-1.5 rounded-xl min-w-0 flex-1">
+        <div className="border-t border-slate-100  flex flex-wrap items-center justify-between gap-2">
+          {/* Badge Saldo Mencolok */}
+          <div className="flex items-center gap-2 bg-[#800000]/5 border border-[#800000]/15 px-3 py-1.5 rounded-xl min-w-[140px] flex-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-[#800000]/70 shrink-0">
               Saldo
             </span>
@@ -565,17 +661,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span className="text-sm sm:text-base font-black text-[#800000] font-mono tracking-tight tabular-nums truncate">
               {formatRupiah(currentUser.walletBalance || 0)}
             </span>
+            
           </div>
+                <button
+              type="button"
+              onClick={() => {
+                setTopUpInitialNominal(undefined);
+                setShowTopUpModal(true);
+              }}
+              title="Isi Saldo Akun Owner Langsung"
+className="h-9 px-3.5 rounded-xl bg-[#800000] hover:bg-[#660000] active:bg-[#4d0000] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-[#800000]/20 transition active:scale-95 cursor-pointer shrink-0"            >
+              <span>(+) Isi Saldo</span>
+            </button>
 
-          {/* Tombol Aksi Tambah Saldo (Tinggi dan padding disamakan h-9 px-3.5) */}
-          <button
-            type="button"
-            onClick={() => setShowTopUpModal(true)}
-            title="Isi Saldo Akun Owner Langsung"
-            className="h-9 px-3.5 rounded-xl bg-[#800000] hover:bg-[#660000] active:bg-[#4d0000] text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm shadow-[#800000]/20 transition active:scale-95 cursor-pointer shrink-0"
-          >
-            <span>(+) Isi Saldo</span>
-          </button>
+
         </div>
       )}
     </div>
@@ -1449,11 +1548,207 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       )}
       <TopUpModal
         isOpen={showTopUpModal}
-        onClose={() => setShowTopUpModal(false)}
+        onClose={() => {
+          setShowTopUpModal(false);
+          setTopUpInitialNominal(undefined);
+        }}
         currentUser={currentUser}
         onMidtransSettled={onMidtransSettled}
         sisaHari={sisaHari}
+        initialNominal={topUpInitialNominal}
       />
+
+      {/* MODAL PERPANJANG LANGGANAN CEPAT DARI SALDO */}
+      {showExtendModal && (() => {
+        const unitPrice = extendTargetTier === 'pro' ? HARGA_PRO_BULANAN : HARGA_PREMIUM_BULANAN;
+        const durationDays = extendMonths * 30;
+        const totalCost = extendMonths * unitPrice;
+        const walletBalance = currentUser.walletBalance || 0;
+        const isBalanceEnough = walletBalance >= totalCost;
+        const isSameTier = currentNormalizedTier === extendTargetTier;
+        const isSwitchingPaidTier =
+          currentNormalizedTier !== 'newcomer' && !isSameTier && sisaHari > 0;
+        const nextEndTimestamp = calculateNextSubscriptionEndDate({
+          currentTier: currentNormalizedTier,
+          currentEndDate: effectiveEndDate,
+          targetTier: extendTargetTier,
+          durationDays,
+        });
+        const nextTotalDays = Math.max(
+          durationDays,
+          Math.ceil((nextEndTimestamp - Date.now()) / (1000 * 60 * 60 * 24))
+        );
+
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in"
+            onClick={() => {
+              if (!isExtendingSubscription) setShowExtendModal(false);
+            }}
+          >
+            <div
+              className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-[#800000] text-white px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-amber-300" />
+                  <h3 className="font-bold text-sm">Perpanjang Langganan</h3>
+                </div>
+                <button
+                  type="button"
+                  disabled={isExtendingSubscription}
+                  onClick={() => setShowExtendModal(false)}
+                  className="p-1 rounded-full hover:bg-white/15 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-3.5 text-xs">
+                {/* Pilihan Paket */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1.5">
+                    Pilih Paket Langganan
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={isExtendingSubscription}
+                      onClick={() => setExtendTargetTier('premium')}
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                        extendTargetTier === 'premium'
+                          ? 'border-[#800000] bg-rose-50/70 ring-1 ring-[#800000]'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-extrabold text-slate-900">Premium</span>
+                        {currentNormalizedTier === 'premium' && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#800000]/10 text-[#800000]">
+                            Aktif
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] font-mono font-bold text-[#800000] mt-0.5">
+                        {formatRupiah(HARGA_PREMIUM_BULANAN)}/bln
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isExtendingSubscription}
+                      onClick={() => setExtendTargetTier('pro')}
+                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                        extendTargetTier === 'pro'
+                          ? 'border-amber-600 bg-amber-50/70 ring-1 ring-amber-600'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-extrabold text-slate-900">Pro</span>
+                        {currentNormalizedTier === 'pro' && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                            Aktif
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] font-mono font-bold text-amber-700 mt-0.5">
+                        {formatRupiah(HARGA_PRO_BULANAN)}/bln
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+
+                {/* Peringatan Hangus jika pindah paket */}
+                {isSwitchingPaidTier && (
+                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                    <strong>Perhatian:</strong> Anda berpindah dari{' '}
+                    <strong>{currentNormalizedTier === 'premium' ? 'Paket Premium' : 'Paket Pro'}</strong> ke{' '}
+                    <strong>{extendTargetTier === 'pro' ? 'Paket Pro' : 'Paket Premium'}</strong>. Sisa{' '}
+                    <strong>{sisaHari} hari</strong> paket sebelumnya akan dihanguskan dan masa aktif baru dimulai{' '}
+                    <strong>{durationDays} hari</strong> dari hari ini.
+                  </div>
+                )}
+
+                {/* Ringkasan Potong Saldo & Masa Aktif */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Saldo Dompet Anda</span>
+                    <span className="font-bold font-mono text-slate-900 tabular-nums">
+                      {formatRupiah(walletBalance)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Biaya Potong Saldo</span>
+                    <span className="font-black font-mono text-[#800000] tabular-nums">
+                      - {formatRupiah(totalCost)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
+                    <span className="font-semibold text-slate-700">Sisa Saldo Setelahnya</span>
+                    <span
+                      className={`font-black font-mono tabular-nums ${
+                        isBalanceEnough ? 'text-emerald-700' : 'text-rose-600'
+                      }`}
+                    >
+                      {isBalanceEnough
+                        ? formatRupiah(walletBalance - totalCost)
+                        : `Kurang ${formatRupiah(totalCost - walletBalance)}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
+                    <span className="font-semibold text-slate-700">Masa Aktif Baru</span>
+                    <span className="font-black text-emerald-700 tabular-nums">
+                      {isSameTier && sisaHari > 0
+                        ? `${sisaHari} + ${durationDays} = ${nextTotalDays} Hari`
+                        : `${nextTotalDays} Hari`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tombol Aksi */}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isExtendingSubscription}
+                    onClick={() => setShowExtendModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  {isBalanceEnough ? (
+                    <button
+                      type="button"
+                      disabled={isExtendingSubscription}
+                      onClick={handleConfirmQuickExtend}
+                      className="flex-[1.5] py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-extrabold shadow-sm transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {isExtendingSubscription && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                      <span>
+                        {isExtendingSubscription ? 'Memproses...' : 'Potong Saldo & Perpanjang'}
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExtendModal(false);
+                        setTopUpInitialNominal(totalCost);
+                        setShowTopUpModal(true);
+                      }}
+                      className="flex-[1.5] py-2.5 px-3 rounded-xl bg-[#800000] hover:bg-[#660000] text-white text-xs font-extrabold shadow-sm transition cursor-pointer"
+                    >
+                      Isi Saldo Sekarang
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {isSuperAdmin && (
         <>

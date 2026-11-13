@@ -271,16 +271,36 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
         </div>
 
         {/* Dialog Konfirmasi Potong Saldo */}
-        {confirmTier && (
+        {confirmTier && (() => {
+          const currentEnd = currentUser?.subscriptionEndDate || 0;
+          const sisaHariSekarang = Math.max(
+            0,
+            Math.ceil((currentEnd - Date.now()) / (1000 * 60 * 60 * 24))
+          );
+          const isSwitchingPaidTier =
+            activeTier !== 'newcomer' && activeTier !== confirmTier && sisaHariSekarang > 0;
+          const isExtendingSameTier = activeTier === confirmTier;
+
+          return (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
             <div className="w-full max-w-sm bg-white rounded-xl shadow-lg border border-slate-200 p-4 space-y-3">
               <h4 className="font-bold text-sm text-slate-900">
-                Konfirmasi Aktivasi {confirmLabel}
+                Konfirmasi {isExtendingSameTier ? 'Perpanjangan' : 'Aktivasi'} {confirmLabel}
               </h4>
               <p className="text-xs text-slate-600 leading-relaxed">
                 Saldo Anda sebesar <span className="font-semibold text-slate-900 font-mono">{formatRupiah(walletBalance)}</span> akan dipotong{' '}
-                <span className="font-bold text-[#800000] font-mono">{formatRupiah(confirmPrice)}</span> untuk mengaktifkan masa aktif 30 hari.
+                <span className="font-bold text-[#800000] font-mono">{formatRupiah(confirmPrice)}</span> untuk{' '}
+                {isExtendingSameTier && sisaHariSekarang > 0
+                  ? `menambah +30 hari (menjadi ${sisaHariSekarang + 30} hari masa aktif).`
+                  : 'mengaktifkan masa aktif 30 hari.'}
               </p>
+              {isSwitchingPaidTier && (
+                <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-medium leading-relaxed">
+                  Perhatian: Berpindah dari{' '}
+                  <strong>{activeTier === 'premium' ? 'Paket Premium' : 'Paket Pro'}</strong> ke{' '}
+                  <strong>{confirmLabel}</strong> akan menghanguskan sisa {sisaHariSekarang} hari paket sebelumnya dan memulai masa aktif baru 30 hari.
+                </div>
+              )}
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   type="button"
@@ -313,7 +333,8 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

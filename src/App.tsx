@@ -3025,6 +3025,7 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
             onOpenKelolaKasir={() => navigateTo('kelola_kasir')}
             onOpenApkModal={() => setIsApkModalOpen(true)}
             onOpenUpgradeModal={handleOpenUpgradeModal}
+            onExtendSubscription={handleExtendSubscription}
             onMidtransSettled={handleMidtransSettled}
             onSelfAccountUpdated={handleAdminSelfAccountUpdated}
             onUpdateOwnerProfile={handleUpdateOwnerProfile}

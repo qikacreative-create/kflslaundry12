@@ -578,6 +578,37 @@ async function updatePaymentOrderStatus(
   ).catch(() => undefined);
 }
 
+function normalizeServerTier(rawTier?: unknown): 'newcomer' | 'premium' | 'pro' {
+  if (typeof rawTier !== 'string') return 'newcomer';
+  const clean = rawTier.toLowerCase().trim();
+  if (clean === 'pro' || clean === 'paket pro') return 'pro';
+  if (
+    !clean ||
+    clean === 'newcomer' ||
+    clean === 'pemula' ||
+    clean === 'gratis' ||
+    clean === 'free' ||
+    clean === 'trial' ||
+    clean === 'starter'
+  ) {
+    return 'newcomer';
+  }
+  return 'premium';
+}
+
+function calculateServerNextSubEndDate(params: {
+  currentTier?: unknown;
+  currentEndDate?: unknown;
+  targetTier: 'premium' | 'pro';
+  durationDays: number;
+  now: number;
+}): number {
+  const isSameTier = normalizeServerTier(params.currentTier) === params.targetTier;
+  const currentEnd = typeof params.currentEndDate === 'number' ? params.currentEndDate : 0;
+  const baseEnd = isSameTier ? Math.max(params.now, currentEnd) : params.now;
+  return baseEnd + params.durationDays * 24 * 60 * 60 * 1000;
+}
+
 async function commitOrderSettlement(params: {
   projectId: string;
   bearerToken: string;
@@ -610,9 +641,14 @@ async function commitOrderSettlement(params: {
     params.purpose === 'topup_wallet'
       ? walletBefore + Math.round(params.amount)
       : walletBefore;
-  const baseSubEnd = Math.max(now, Number(params.currentSubEnd) || 0);
   const nextSubEnd = isExtend
-    ? baseSubEnd + durationDays * 24 * 60 * 60 * 1000
+    ? calculateServerNextSubEndDate({
+        currentTier: params.currentSubType,
+        currentEndDate: params.currentSubEnd,
+        targetTier,
+        durationDays,
+        now,
+      })
     : params.currentSubEnd;
   const nextSubType = isExtend ? targetTier : params.currentSubType;
 
@@ -1400,10 +1436,13 @@ async function startServer() {
 
       const now = Date.now();
       const walletAfter = walletBefore - authoritativeCost;
-      const currentSubEnd =
-        typeof userDoc.data.subscriptionEndDate === 'number' ? userDoc.data.subscriptionEndDate : 0;
-      const baseEnd = Math.max(now, currentSubEnd);
-      const nextSubEnd = baseEnd + durationDays * 24 * 60 * 60 * 1000;
+      const nextSubEnd = calculateServerNextSubEndDate({
+        currentTier: userDoc.data.subscriptionType,
+        currentEndDate: userDoc.data.subscriptionEndDate,
+        targetTier,
+        durationDays,
+        now,
+      });
 
       const docRoot = `projects/${fbCfg.projectId}/databases/(default)/documents`;
       const userDocName = `${docRoot}/users/${verified.uid}`;
@@ -1834,7 +1873,13 @@ async function startServer() {
         action === 'topup_wallet' ? walletBefore + effectiveAmount : walletBefore;
       const nextSubType = action === 'extend_pro' ? 'pro' : action === 'extend_premium' ? 'premium' : currentSubType;
       const nextSubEnd = isExtendAction
-        ? Math.max(now, currentSubEnd || 0) + durationDays * 24 * 60 * 60 * 1000
+        ? calculateServerNextSubEndDate({
+            currentTier: currentSubType,
+            currentEndDate: currentSubEnd,
+            targetTier: nextSubType === 'pro' ? 'pro' : 'premium',
+            durationDays,
+            now,
+          })
         : currentSubEnd;
 
       const docRoot = `projects/${fbCfg.projectId}/databases/(default)/documents`;

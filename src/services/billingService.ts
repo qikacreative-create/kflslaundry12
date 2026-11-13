@@ -2,7 +2,12 @@ import { doc, runTransaction, updateDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { Laundry } from '../types';
 import { formatRupiah } from '../utils/formatters';
-import { HARGA_PREMIUM_BULANAN, HARGA_PRO_BULANAN } from '../utils/subscription';
+import {
+  HARGA_PREMIUM_BULANAN,
+  HARGA_PRO_BULANAN,
+  calculateNextSubscriptionEndDate,
+  normalizeTier,
+} from '../utils/subscription';
 import {
   getActiveIdToken,
   isRunningOnBackendHost,
@@ -218,10 +223,20 @@ export async function extendSubscriptionDirectFromWallet(params?: {
 
       const now = Date.now();
       const walletAfter = walletBefore - authoritativeCost;
+      const currentNormalizedTier = normalizeTier(
+        typeof userData.subscriptionType === 'string' ? userData.subscriptionType : null
+      );
       const currentSubEnd =
         typeof userData.subscriptionEndDate === 'number' ? userData.subscriptionEndDate : 0;
-      const baseEnd = Math.max(now, currentSubEnd);
-      const nextSubEnd = baseEnd + durationDays * 24 * 60 * 60 * 1000;
+      const nextSubEnd = calculateNextSubscriptionEndDate({
+        currentTier: currentNormalizedTier,
+        currentEndDate: currentSubEnd,
+        targetTier,
+        durationDays,
+        now,
+      });
+      const switchedFromOtherPaidTier =
+        currentNormalizedTier !== 'newcomer' && currentNormalizedTier !== targetTier;
 
       const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
       const auditId = `AUD-DIR-${now}-${randomSuffix}`;
@@ -232,7 +247,7 @@ export async function extendSubscriptionDirectFromWallet(params?: {
       const branchDocRef = doc(db, 'laundries', primaryBranchId);
       const branchSnap = await transaction.get(branchDocRef);
 
-      // 1. Potong saldo dompet & tambah durasi di users Firestore
+      // 1. Potong saldo dompet & tambah/reset durasi di users Firestore
       transaction.update(userDocRef, {
         walletBalance: walletAfter,
         subscriptionType: targetTier,
@@ -255,7 +270,9 @@ export async function extendSubscriptionDirectFromWallet(params?: {
         durationDays,
         subscriptionTypeAfter: targetTier,
         subscriptionEndDateAfter: nextSubEnd,
-        note: `Perpanjangan ${tierLabel} (${durationDays} Hari) langsung dari saldo dompet`,
+        note: switchedFromOtherPaidTier
+          ? `Aktivasi ${tierLabel} (${durationDays} Hari) dari saldo dompet (paket ${currentNormalizedTier} sebelumnya dihanguskan)`
+          : `Perpanjangan ${tierLabel} (${durationDays} Hari) langsung dari saldo dompet`,
         createdAt: now,
       });
 
