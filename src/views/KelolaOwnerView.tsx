@@ -20,7 +20,11 @@ import {
 import { User, Laundry, SubscriptionHistory } from '../types';
 import { formatRupiah, formatDateIndo } from '../utils/formatters';
 import { useToast, useConfirm } from '../components/NotificationContext';
-import { getLaundryLimits } from '../utils/subscription';
+import {
+  getLaundryLimits,
+  getRemainingSubscriptionDays,
+  isSubscriptionExpiredForUser,
+} from '../utils/subscription';
 import { TopUpModal } from '../components/TopUpModal.tsx';
 import {
   SuperAdminBillingModal,
@@ -108,10 +112,8 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
   const isPremium = currentLimits.tier === 'premium';
   const HARGA_Premium_BULANAN = 27000;
 
-  const sisaHari = Math.max(
-    0,
-    Math.ceil(((currentUser.subscriptionEndDate || Date.now()) - Date.now()) / (1000 * 60 * 60 * 24))
-  );
+  const sisaHari = getRemainingSubscriptionDays(currentUser);
+  const isExpired = isSubscriptionExpiredForUser(currentUser);
 
   const openPaymentModal = (
     purpose: PaymentPurpose,
@@ -161,6 +163,15 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
     const EXTRA_COST = 25000;
 
     if (isExtraBranch) {
+      if (isSubscriptionExpiredForUser(currentUser)) {
+        toast.warning(
+          'Masa percobaan 7 hari atau langganan Anda telah berakhir. Perpanjang Paket Premium terlebih dahulu sebelum menambah cabang.'
+        );
+        setShowAddBranchModal(false);
+        openPaymentModal('extend_premium', 'midtrans', HARGA_Premium_BULANAN);
+        return;
+      }
+
       if ((currentUser.walletBalance || 0) < EXTRA_COST) {
         toast.warning(
           `Saldo dompet tidak mencukupi (${formatRupiah(EXTRA_COST)}). Silakan isi saldo terlebih dahulu.`
@@ -351,23 +362,23 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
               {/* Header Masa Aktif */}
               <div
                 onClick={() => {
-                  if (!isNewcomer && sisaHari <= 0 && onOpenExpiredModal) {
+                  if (isExpired && onOpenExpiredModal) {
                     onOpenExpiredModal();
                   }
                 }}
                 className={`px-3.5 py-2 text-center text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition ${
-                  !isNewcomer && sisaHari <= 0
+                  isExpired
                     ? 'bg-rose-600 hover:bg-rose-700 cursor-pointer text-white animate-pulse'
                     : 'bg-[#800000] text-white'
                 }`}
-                title={!isNewcomer && sisaHari <= 0 ? 'Masa langganan habis! Klik untuk buka halaman perpanjangan' : undefined}
+                title={isExpired ? 'Masa aktif habis! Klik untuk buka halaman perpanjangan' : undefined}
               >
                 <Clock className="w-3.5 h-3.5 text-white" />
                 <span>
-                  {isNewcomer
-                    ? 'Masa Aktif: Paket Newcomer (Gratis Selamanya)'
-                    : sisaHari > 0
+                  {!isExpired
                     ? `Masa Aktif: ${currentLimits.label} (${sisaHari} Hari Tersisa)`
+                    : isNewcomer
+                    ? 'Masa Percobaan 7 Hari Habis - Klik untuk Perpanjang'
                     : `Masa Aktif: ${currentLimits.label} Habis (0 Hari) - Klik untuk Perpanjang`}
                 </span>
               </div>
@@ -432,14 +443,14 @@ export const KelolaOwnerView: React.FC<KelolaOwnerViewProps> = ({
 
                 </div>
 
-                {!isNewcomer && sisaHari <= 0 && onOpenExpiredModal && (
+                {isExpired && onOpenExpiredModal && (
                   <button
                     type="button"
                     onClick={onOpenExpiredModal}
                     className="w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-sm transition active:scale-98 cursor-pointer"
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>Layar Habis Hari Langganan</span>
+                    <span>{isNewcomer ? 'Perpanjang Paket Premium' : 'Layar Habis Hari Langganan'}</span>
                   </button>
                 )}
 

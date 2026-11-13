@@ -1585,28 +1585,49 @@ async function startServer() {
       }
 
       const isExtraBranch = realBranchIds.size >= 1;
-      const authoritativeCost = isExtraBranch ? EXTRA_BRANCH_PRICE : 0;
-      const walletBefore = Math.max(0, Math.floor(Number(userDoc.data.walletBalance) || 0));
+      const now = Date.now();
+      const authoritativeSubType = String(userDoc.data.subscriptionType || 'newcomer');
+      const normalizedSubType = normalizeServerTier(authoritativeSubType);
+      const createdAtMs =
+        typeof userDoc.data.createdAt === 'number' && userDoc.data.createdAt > 0
+          ? userDoc.data.createdAt
+          : 0;
+      const explicitSubEnd =
+        typeof userDoc.data.subscriptionEndDate === 'number' && userDoc.data.subscriptionEndDate > 0
+          ? userDoc.data.subscriptionEndDate
+          : null;
+      const authoritativeSubEnd =
+        explicitSubEnd !== null
+          ? explicitSubEnd
+          : normalizedSubType === 'newcomer' && createdAtMs > 0
+          ? createdAtMs + 7 * 24 * 60 * 60 * 1000
+          : null;
 
-      if (isExtraBranch && walletBefore < authoritativeCost) {
-        return res.status(400).json({
-          error: `Saldo dompet di server tidak mencukupi untuk aktivasi cabang tambahan (Rp ${authoritativeCost.toLocaleString('id-ID')}).`,
-          code: 'INSUFFICIENT_WALLET_BALANCE',
-          walletBalance: walletBefore,
-          requiredCost: authoritativeCost,
+      if (isExtraBranch && (!authoritativeSubEnd || authoritativeSubEnd <= now)) {
+        return res.status(403).json({
+          error:
+            'Masa percobaan 7 hari atau langganan Anda telah berakhir. Perpanjang Paket Premium sebelum menambah cabang baru.',
+          code: 'SUBSCRIPTION_EXPIRED',
         });
       }
 
-      const now = Date.now();
+      const isExtraBranchCost = isExtraBranch ? EXTRA_BRANCH_PRICE : 0;
+      const walletBefore = Math.max(0, Math.floor(Number(userDoc.data.walletBalance) || 0));
+
+      if (isExtraBranch && walletBefore < isExtraBranchCost) {
+        return res.status(400).json({
+          error: `Saldo dompet di server tidak mencukupi untuk aktivasi cabang tambahan (Rp ${isExtraBranchCost.toLocaleString('id-ID')}).`,
+          code: 'INSUFFICIENT_WALLET_BALANCE',
+          walletBalance: walletBefore,
+          requiredCost: isExtraBranchCost,
+        });
+      }
+
+      const authoritativeCost = isExtraBranchCost;
       const walletAfter = walletBefore - authoritativeCost;
       const branchId = isExtraBranch
         ? `lnd-${now}-${crypto.randomBytes(2).toString('hex')}`
         : `lnd-${verified.uid}`;
-      const authoritativeSubType = String(userDoc.data.subscriptionType || 'newcomer');
-      const authoritativeSubEnd =
-        typeof userDoc.data.subscriptionEndDate === 'number'
-          ? userDoc.data.subscriptionEndDate
-          : null;
 
       const existingMap =
         userDoc.data.laundries && typeof userDoc.data.laundries === 'object'
@@ -1769,6 +1790,7 @@ async function startServer() {
           subscriptionType: String(u.subscriptionType || 'newcomer'),
           subscriptionEndDate:
             typeof u.subscriptionEndDate === 'number' ? u.subscriptionEndDate : null,
+          createdAt: typeof u.createdAt === 'number' ? u.createdAt : null,
           branches: branches.map((b) => ({
             id: b.id,
             namaLaundry: String(b.data.namaLaundry || "Kafela's Laundry"),

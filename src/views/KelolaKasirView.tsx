@@ -60,7 +60,7 @@ export const KelolaKasirView: React.FC<KelolaKasirViewProps> = ({
     }
 
     const limits = getLaundryLimits(currentTier);
-    if (limits.tier === 'newcomer' || limits.maxCashiers <= 0) {
+    if (limits.maxCashiers <= 0) {
       toast.warning('Fitur pembuatan akun kasir tambahan hanya untuk Paket Premium.');
       onOpenUpgradeModal?.('Pembuatan akun login kasir beda HP khusus Paket Premium');
       return;
@@ -101,8 +101,8 @@ export const KelolaKasirView: React.FC<KelolaKasirViewProps> = ({
   };
 
   const limits = getLaundryLimits(currentTier);
-  const isNewcomer = limits.tier === 'newcomer';
-  const isAtLimit = isNewcomer || cashiers.length >= laundries.length;
+  const isCashierDisabled = limits.maxCashiers <= 0;
+  const isAtLimit = isCashierDisabled || cashiers.length >= laundries.length;
 
   const handleAddOpStaffSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,28 +155,27 @@ export const KelolaKasirView: React.FC<KelolaKasirViewProps> = ({
                   <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Akun Kasir (Login)</span>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  isNewcomer
+                  isCashierDisabled
                     ? 'bg-slate-100 text-slate-500'
                     : 'bg-sky-100 text-sky-800'
                 }`}>
-                  {isNewcomer
-                    ? '0/0 Newcomer'
+                  {isCashierDisabled
+                    ? '0/0 Nonaktif'
                     : `${cashiers.length}/${laundries.length} Kasir`}
                 </span>
               </div>
 
               {/* Form Tambah Kasir Inline / Lock Notice */}
-              {isNewcomer ? (
+              {isCashierDisabled ? (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-slate-800 font-bold text-xs">
                       <Lock className="w-3.5 h-3.5 text-slate-500" />
                       <span>Akun Kasir Dinonaktifkan</span>
                     </div>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded">Newcomer</span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Paket Newcomer (Gratis) dibatasi hanya untuk 1 Owner dan tidak ada akun kasir tambahan. Operasional kasir dijalankan langsung oleh Owner.
+                    Pembuatan akun login kasir memerlukan Paket Premium aktif.
                   </p>
                   <button
                     type="button"

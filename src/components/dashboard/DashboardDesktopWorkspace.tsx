@@ -13,7 +13,6 @@ import {
   Lock,
   MapPin,
   Plus,
-  Receipt,
   RotateCw,
   Search,
   ShieldAlert,
@@ -23,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Laundry, Pengeluaran, SettingsData, Transaksi, User } from '../../types';
 import { formatRupiah, formatShortDate, formatShortTime } from '../../utils/formatters';
-import type { getLaundryLimits } from '../../utils/subscription';
+import { getRemainingSubscriptionDays, type getLaundryLimits } from '../../utils/subscription';
 import { PWAInstallButton } from '../PWAInstallButton';
 import { useToast } from '../NotificationContext';
 import { useDeferredWidgetMount } from './useDeferredWidgetMount';
@@ -374,37 +373,43 @@ export const DashboardDesktopWorkspace: React.FC<DashboardDesktopWorkspaceProps>
             </div>
           )}
 
-          {isNewcomer && (
-            <div
-              onClick={() =>
-                onOpenUpgradeModal?.(
-                  'Batas kuota 50 transaksi per bulan untuk Paket Newcomer (Gratis) telah tercapai'
-                )
-              }
-              title={`Terpakai ${currentMonthTrxCount} dari ${limits.maxMonthlyTransactions} nota bulan ini. Klik untuk lihat opsi upgrade.`}
-              className={`px-3 py-2 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition cursor-pointer select-none active:scale-95 ${
-                isMonthlyQuotaFull
-                  ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              <Receipt
-                className={`w-3.5 h-3.5 ${isMonthlyQuotaFull ? 'text-rose-600' : 'text-[#800000]'}`}
-              />
-              <span className="font-mono tabular-nums">
-                {currentMonthTrxCount} / {limits.maxMonthlyTransactions} Nota
-              </span>
-              {isMonthlyQuotaFull ? (
-                <span className="px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black uppercase">
-                  Penuh
+          {(isNewcomer || isExpired) && (() => {
+            const sisaHari = getRemainingSubscriptionDays(currentUser);
+            return (
+              <div
+                onClick={() =>
+                  isExpired
+                    ? (onOpenExpiredModal || onOpenUpgradeModal)?.()
+                    : onOpenUpgradeModal?.()
+                }
+                title={
+                  isExpired
+                    ? 'Masa aktif berakhir. Klik untuk perpanjang Paket Premium.'
+                    : `Masa percobaan 7 hari aktif (sisa ${sisaHari} hari). Klik untuk lihat paket.`
+                }
+                className={`px-3 py-2 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition cursor-pointer select-none active:scale-95 tabular-nums ${
+                  isExpired
+                    ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse'
+                    : sisaHari <= 2
+                    ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                }`}
+              >
+                <Clock
+                  className={`w-3.5 h-3.5 ${
+                    isExpired ? 'text-rose-600' : sisaHari <= 2 ? 'text-amber-600' : 'text-emerald-600'
+                  }`}
+                />
+                <span>
+                  {isExpired
+                    ? isNewcomer
+                      ? 'Trial Habis'
+                      : 'Langganan Habis'
+                    : `Trial ${sisaHari} Hari`}
                 </span>
-              ) : (
-                <span className="text-[10px] text-emerald-700 font-semibold hidden xl:inline">
-                  Gratis
-                </span>
-              )}
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           <button
             type="button"
@@ -430,27 +435,29 @@ export const DashboardDesktopWorkspace: React.FC<DashboardDesktopWorkspaceProps>
             onClick={onOpenNewTransaksi}
             data-tour="btn-tambah-transaksi"
             title={
-              activeBranchTrxCount >= 400
+              isExpired
+                ? 'Masa aktif berakhir. Klik untuk perpanjang Paket Premium.'
+                : activeBranchTrxCount >= 400
                 ? 'Transaksi baru dikunci (Capai 400+ pesanan). Klik untuk kelola arsip.'
                 : activeBranchTrxCount >= 300
                 ? 'Peringatan: 300+ pesanan aktif belum diambil'
                 : 'Buat Transaksi Baru'
             }
             className={`px-4 py-2 rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer ${
-              activeBranchTrxCount >= 400
+              isExpired || activeBranchTrxCount >= 400
                 ? 'bg-red-600 hover:bg-red-700 text-white ring-2 ring-red-200'
                 : activeBranchTrxCount >= 300
                 ? 'bg-amber-600 hover:bg-amber-700 text-white ring-2 ring-amber-200'
                 : 'bg-[#800000] hover:bg-[#660000] text-white'
             }`}
           >
-            {activeBranchTrxCount >= 400 ? (
+            {isExpired || activeBranchTrxCount >= 400 ? (
               <Lock className="w-4 h-4 stroke-[2.5]" />
             ) : (
               <Plus className="w-4 h-4 stroke-[2.5]" />
             )}
             <span>Transaksi Baru</span>
-            {activeBranchTrxCount >= 400 ? (
+            {isExpired || activeBranchTrxCount >= 400 ? (
               <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-black">
                 Terkunci
               </span>

@@ -105,6 +105,26 @@ service cloud.firestore {
         ]);
     }
 
+    function hasActiveOwnerTrialOrPaid(ownerData) {
+      return (ownerData.get('subscriptionType', 'newcomer') in ['premium', 'pro']) || (
+        ownerData.get('subscriptionType', 'newcomer') == 'newcomer' && (
+          (ownerData.get('subscriptionEndDate', null) is number &&
+           ownerData.get('subscriptionEndDate', 0) > request.time.toMillis()) ||
+          (ownerData.get('subscriptionEndDate', null) == null &&
+           ownerData.get('createdAt', 0) is number &&
+           (ownerData.get('createdAt', 0) + 7 * 86400000) > request.time.toMillis())
+        )
+      );
+    }
+
+    function matchesOwnerSubEnd(incomingSubEnd, ownerData) {
+      return incomingSubEnd == ownerData.get('subscriptionEndDate', null) || (
+        ownerData.get('subscriptionEndDate', null) == null &&
+        ownerData.get('createdAt', 0) is number &&
+        incomingSubEnd == (ownerData.get('createdAt', 0) + 7 * 86400000)
+      );
+    }
+
     function isValidNewOwnerCreate(userId) {
       return request.auth.uid == userId &&
         incoming().keys().hasAll(['uid', 'role', 'laundryId', 'walletBalance', 'subscriptionType']) &&
@@ -128,7 +148,18 @@ service cloud.firestore {
         incoming().role == 'owner' &&
         incoming().walletBalance == 0 &&
         incoming().subscriptionType == 'newcomer' &&
-        incoming().get('subscriptionEndDate', null) == null &&
+        (
+          !('createdAt' in incoming()) ||
+          (incoming().createdAt is number && incoming().createdAt <= request.time.toMillis() + 3600000)
+        ) &&
+        (
+          incoming().get('subscriptionEndDate', null) == null ||
+          (
+            incoming().subscriptionEndDate is number &&
+            incoming().subscriptionEndDate >= request.time.toMillis() - 3600000 &&
+            incoming().subscriptionEndDate <= request.time.toMillis() + 7 * 86400000 + 3600000
+          )
+        ) &&
         isValidUserSafeFields(incoming());
     }
 
@@ -159,9 +190,10 @@ service cloud.firestore {
         incoming().walletBalance == 0 &&
         isValidUserSafeFields(incoming()) &&
         exists(ownerDocPath) &&
-        (get(ownerDocPath).data.get('subscriptionType', 'newcomer') in ['premium', 'pro']) &&
-        (incoming().get('subscriptionType', 'newcomer') in ['premium', 'pro']) &&
-        incoming().get('subscriptionEndDate', null) == get(ownerDocPath).data.get('subscriptionEndDate', null) &&
+        hasActiveOwnerTrialOrPaid(get(ownerDocPath).data) &&
+        (incoming().get('subscriptionType', 'newcomer') in ['newcomer', 'premium', 'pro']) &&
+        incoming().get('subscriptionType', 'newcomer') == get(ownerDocPath).data.get('subscriptionType', 'newcomer') &&
+        matchesOwnerSubEnd(incoming().get('subscriptionEndDate', null), get(ownerDocPath).data) &&
         isOwnerOfLaundry(incoming().laundryId);
     }
 
@@ -187,8 +219,14 @@ service cloud.firestore {
         isOptionalString(incoming(), 'alamat', 300) &&
         isOptionalString(incoming(), 'nomorTelepon', 40) &&
         (
-          (incoming().get('subscriptionType', 'newcomer') == 'newcomer' &&
-           incoming().get('subscriptionEndDate', null) == null) ||
+          (incoming().get('subscriptionType', 'newcomer') == 'newcomer' && (
+            incoming().get('subscriptionEndDate', null) == null ||
+            (
+              incoming().subscriptionEndDate is number &&
+              incoming().subscriptionEndDate >= request.time.toMillis() - 3600000 &&
+              incoming().subscriptionEndDate <= request.time.toMillis() + 7 * 86400000 + 3600000
+            )
+          )) ||
           (exists(userDocPath) &&
            incoming().get('subscriptionType', 'newcomer') == get(userDocPath).data.get('subscriptionType', 'newcomer') &&
            incoming().get('subscriptionEndDate', null) == get(userDocPath).data.get('subscriptionEndDate', null))
@@ -252,8 +290,14 @@ service cloud.firestore {
         request.auth.uid == ownerId &&
         incoming().get('paketAktif', 'newcomer') == 'newcomer' &&
         incoming().get('walletBalance', 0) == 0 &&
-        incoming().get('subscriptionType', 'newcomer') == 'newcomer' &&
-        incoming().get('subscriptionEndDate', null) == null
+        incoming().get('subscriptionType', 'newcomer') == 'newcomer' && (
+          incoming().get('subscriptionEndDate', null) == null ||
+          (
+            incoming().subscriptionEndDate is number &&
+            incoming().subscriptionEndDate >= request.time.toMillis() - 3600000 &&
+            incoming().subscriptionEndDate <= request.time.toMillis() + 7 * 86400000 + 3600000
+          )
+        )
       );
       allow update: if isSuperAdmin() || (
         isSignedIn() &&
@@ -402,9 +446,10 @@ service cloud.firestore {
             'updatedAt'
           ]) &&
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionType', 'newcomer') in ['premium', 'pro']) &&
-          (incoming().get('subscriptionType', 'newcomer') in ['premium', 'pro']) &&
-          incoming().get('subscriptionEndDate', null) == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionEndDate', null) &&
+          hasActiveOwnerTrialOrPaid(get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+          (incoming().get('subscriptionType', 'newcomer') in ['newcomer', 'premium', 'pro']) &&
+          incoming().get('subscriptionType', 'newcomer') == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('subscriptionType', 'newcomer') &&
+          matchesOwnerSubEnd(incoming().get('subscriptionEndDate', null), get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
           isOwnerOfLaundry(incoming().laundryId)
         )
       );

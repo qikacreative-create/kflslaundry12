@@ -28,6 +28,8 @@ export const HARGA_PREMIUM_BULANAN = 27000;
 export const HARGA_Premium_BULANAN = 27000;
 export const HARGA_PRO_BULANAN = 49000;
 export const UNLIMITED_QUOTA = Number.MAX_SAFE_INTEGER;
+export const NEWCOMER_TRIAL_DAYS = 7;
+export const NEWCOMER_TRIAL_DURATION_MS = NEWCOMER_TRIAL_DAYS * 24 * 60 * 60 * 1000;
 
 const PREMIUM_LIMITS: LaundrySubscriptionLimits = {
   tier: 'premium',
@@ -56,7 +58,7 @@ const PREMIUM_LIMITS: LaundrySubscriptionLimits = {
     '1 Akun Login Kasir (Sinkron Beda HP) & 1 Owner per Outlet',
     'Penugasan Staf Pengerjaan Cucian (Cuci, Setrika, Packing)',
     'Grafik Analisis Komparasi Pertumbuhan Omzet & Laba (MoM & YoY)',
-    'Kustomisasi Logo Toko di Struk Thermal',
+    'Kustomisasi Logo & Tanda Tangan di Struk Thermal',
     'Tingkatkan ke Paket Pro untuk Ekspor Excel, Cetak PDF & 2 Cabang',
   ],
 };
@@ -97,33 +99,31 @@ const PRO_LIMITS: LaundrySubscriptionLimits = {
 export const LAUNDRY_TIER_CONFIG: Record<LaundryTier | 'Premium' | 'Pro' | 'pro', LaundrySubscriptionLimits> = {
   newcomer: {
     tier: 'newcomer',
-    label: 'Paket Newcomer',
-    tagline: 'Gratis selamanya untuk operasional awal UMKM (kuota 50 nota/bulan)',
-    badgeText: 'Paket Newcomer',
+    label: 'Trial 7 Hari',
+    tagline: 'Masa percobaan 7 hari dengan seluruh fitur Paket Premium',
+    badgeText: 'Trial 7 Hari',
     priceMonthly: 0,
     maxBranches: 1,
     pricePerExtraBranch: 25000,
-    maxCashiers: 0,
-    maxAdminPerOutlet: 0,
+    maxCashiers: 1,
+    maxAdminPerOutlet: 1,
     maxOwnerPerOutlet: 1,
-    maxCustomers: 50,
-    maxMonthlyTransactions: 50,
-    maxServices: 5,
-    canAssignStaff: false,
+    maxCustomers: UNLIMITED_QUOTA,
+    maxMonthlyTransactions: UNLIMITED_QUOTA,
+    maxServices: UNLIMITED_QUOTA,
+    canAssignStaff: true,
     canExportExcel: false,
     canExportOfficialPdf: false,
-    canViewComparisonGrowth: false,
+    canViewComparisonGrowth: true,
     canUseCustomLogoOnReceipt: true,
-    canUseSignatureOnReceipt: false,
+    canUseSignatureOnReceipt: true,
     highlights: [
-      'Gratis Selamanya (Rp 0 Tanpa Batas Hari)',
-      'Aktif Otomatis Saat Pertama Kali Mendaftar',
-      '1 Cabang Outlet & 1 Owner (Tanpa Akun Kasir)',
-      'Maksimal 50 Data Pelanggan Tersimpan',
-      'Maksimal 50 Nota Transaksi per Bulan',
-      'Maksimal 5 Jenis Layanan Cucian',
-      'Cetak Struk Thermal Standar & Bagikan WhatsApp',
-      'Tingkatkan ke Paket Pro untuk 2 Cabang & Ekspor Laporan',
+      'Masa Percobaan Penuh 7 Hari Sejak Pendaftaran',
+      'Seluruh Fitur Paket Premium Terbuka Selama Masa Trial',
+      'Tanpa Batas Kuota Nota Transaksi, Pelanggan & Jenis Layanan',
+      '1 Akun Login Kasir (Sinkron Beda HP) & Penugasan Staf',
+      'Grafik Analisis Pertumbuhan Omzet & Kustomisasi Struk',
+      'Lanjutkan dengan Paket Premium (Rp 27.000 / 30 Hari) setelah Trial berakhir',
     ],
   },
   premium: PREMIUM_LIMITS,
@@ -149,6 +149,70 @@ export function normalizeTier(rawTier?: string | null): LaundryTier {
     return 'newcomer';
   }
   return 'premium';
+}
+
+export function resolveEffectiveSubscriptionEndDate(params?: {
+  subscriptionType?: string | null;
+  subscriptionEndDate?: number | null;
+  createdAt?: number | null;
+  fallbackAuthCreationTime?: number | null;
+} | null): number | null {
+  if (!params) return null;
+  if (
+    typeof params.subscriptionEndDate === 'number' &&
+    Number.isFinite(params.subscriptionEndDate) &&
+    params.subscriptionEndDate > 0
+  ) {
+    return params.subscriptionEndDate;
+  }
+
+  if (normalizeTier(params.subscriptionType) === 'newcomer') {
+    const baseCreatedAt =
+      typeof params.createdAt === 'number' && Number.isFinite(params.createdAt) && params.createdAt > 0
+        ? params.createdAt
+        : typeof params.fallbackAuthCreationTime === 'number' &&
+          Number.isFinite(params.fallbackAuthCreationTime) &&
+          params.fallbackAuthCreationTime > 0
+        ? params.fallbackAuthCreationTime
+        : null;
+
+    if (baseCreatedAt !== null) {
+      return baseCreatedAt + NEWCOMER_TRIAL_DURATION_MS;
+    }
+  }
+
+  return null;
+}
+
+export function getRemainingSubscriptionDays(
+  user?: {
+    subscriptionType?: string | null;
+    subscriptionEndDate?: number | null;
+    createdAt?: number | null;
+  } | null,
+  now: number = Date.now()
+): number {
+  const effectiveEnd = resolveEffectiveSubscriptionEndDate(user);
+  if (effectiveEnd === null) return 0;
+  const diffMs = effectiveEnd - now;
+  if (diffMs <= 0) return 0;
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
+export function isSubscriptionExpiredForUser(
+  user?: {
+    subscriptionType?: string | null;
+    subscriptionEndDate?: number | null;
+    createdAt?: number | null;
+  } | null,
+  now: number = Date.now()
+): boolean {
+  if (!user) return false;
+  const effectiveEnd = resolveEffectiveSubscriptionEndDate(user);
+  if (effectiveEnd !== null) {
+    return effectiveEnd <= now;
+  }
+  return normalizeTier(user.subscriptionType) === 'newcomer';
 }
 
 export function canDowngradeToNewcomer(): boolean {
@@ -178,7 +242,7 @@ export function calculateNextSubscriptionEndDate(params: {
 
 export function getLaundryLimits(rawTier?: string | null): LaundrySubscriptionLimits {
   const tier = normalizeTier(rawTier);
-  return LAUNDRY_TIER_CONFIG[tier] || LAUNDRY_TIER_CONFIG.pro || LAUNDRY_TIER_CONFIG.premium;
+  return LAUNDRY_TIER_CONFIG[tier] || LAUNDRY_TIER_CONFIG.premium;
 }
 
 export function isProTier(rawTier?: string | null): boolean {
@@ -212,10 +276,10 @@ export function canAddCashierToBranch(
 ): { allowed: boolean; reason?: string } {
   const limits = getLaundryLimits(rawTier);
 
-  if (limits.tier === 'newcomer' || limits.maxCashiers <= 0) {
+  if (limits.maxCashiers <= 0) {
     return {
       allowed: false,
-      reason: 'Paket Newcomer (Gratis) hanya untuk 1 Owner tanpa akun kasir. Tingkatkan ke Paket Premium atau Pro untuk membuat akun kasir.',
+      reason: 'Pembuatan akun kasir memerlukan Paket Premium yang aktif.',
     };
   }
 
@@ -235,7 +299,7 @@ export function canAddCashierToBranch(
   if (totalCashiers.length >= limits.maxCashiers) {
     return {
       allowed: false,
-      reason: `Batas kuota akun kasir untuk ${limits.label} (${limits.maxCashiers} akun kasir) telah tercapai.${limits.tier === 'premium' ? ' Tingkatkan ke Paket Pro untuk kuota 2 akun kasir.' : ''}`,
+      reason: `Batas kuota akun kasir untuk ${limits.label} (${limits.maxCashiers} akun kasir) telah tercapai.${limits.tier !== 'pro' ? ' Tingkatkan ke Paket Pro untuk kuota 2 akun kasir.' : ''}`,
     };
   }
 
@@ -247,7 +311,7 @@ export function canAddCustomer(currentCustomerCount: number, rawTier?: string | 
   if (currentCustomerCount >= limits.maxCustomers) {
     return {
       allowed: false,
-      reason: 'Batas maksimal 50 data pelanggan untuk Paket Newcomer (Gratis) telah tercapai. Tingkatkan ke Paket Premium atau Pro untuk pelanggan tanpa batas.',
+      reason: `Batas maksimal ${limits.maxCustomers} data pelanggan untuk ${limits.label} telah tercapai.`,
     };
   }
   return { allowed: true };
@@ -258,7 +322,7 @@ export function canAddService(currentServiceCount: number, rawTier?: string | nu
   if (currentServiceCount >= limits.maxServices) {
     return {
       allowed: false,
-      reason: 'Paket Newcomer (Gratis) dibatasi maksimal 5 jenis layanan. Tingkatkan ke Paket Premium atau Pro untuk layanan tanpa batas.',
+      reason: `Batas maksimal ${limits.maxServices} jenis layanan untuk ${limits.label} telah tercapai.`,
     };
   }
   return { allowed: true };
@@ -269,7 +333,7 @@ export function canAddMonthlyTransaction(monthlyTransactionCount: number, rawTie
   if (monthlyTransactionCount >= limits.maxMonthlyTransactions) {
     return {
       allowed: false,
-      reason: 'Batas kuota 50 nota transaksi per bulan untuk Paket Newcomer (Gratis) telah tercapai. Tingkatkan ke Paket Premium atau Pro untuk kuota transaksi bulanan tanpa batas!',
+      reason: `Batas kuota ${limits.maxMonthlyTransactions} nota transaksi per bulan untuk ${limits.label} telah tercapai.`,
     };
   }
   return { allowed: true };

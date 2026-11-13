@@ -1,8 +1,24 @@
-import React, { useState } from 'react';
-import { X, Download, Printer, FileText, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
-import type { LaporanPdfData } from '../utils/pdfExport';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  X,
+  Download,
+  Printer,
+  FileText,
+  ExternalLink,
+  Share2,
+  Eye,
+  CheckCircle2,
+} from 'lucide-react';
+import type { LaporanPdfData, GeneratedPdfResult } from '../utils/pdfExport';
 import { formatRupiah } from '../utils/formatters';
 import { useToast } from './NotificationContext';
+import {
+  DownloadedReportViewerModal,
+  DownloadedReportFile,
+  canShareReportFile,
+  shareOrOpenReportFile,
+  formatReportFileSize,
+} from './DownloadedReportViewerModal';
 
 interface ReportPdfModalProps {
   isOpen: boolean;
@@ -17,6 +33,18 @@ export const ReportPdfModal: React.FC<ReportPdfModalProps> = ({
 }) => {
   const toast = useToast();
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [downloadedPdf, setDownloadedPdf] = useState<DownloadedReportFile | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const lastBlobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lastBlobUrlRef.current) {
+        URL.revokeObjectURL(lastBlobUrlRef.current);
+        lastBlobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -24,8 +52,29 @@ export const ReportPdfModal: React.FC<ReportPdfModalProps> = ({
     setIsGeneratingPdf(true);
     try {
       const { generateLaporanPdf } = await import('../utils/pdfExport');
-      const fileName = generateLaporanPdf(data);
-      toast.success(`Berkas ${fileName} berhasil diunduh!`);
+      const result: GeneratedPdfResult = generateLaporanPdf(data);
+
+      if (lastBlobUrlRef.current && lastBlobUrlRef.current !== result.blobUrl) {
+        URL.revokeObjectURL(lastBlobUrlRef.current);
+      }
+      lastBlobUrlRef.current = result.blobUrl;
+
+      const fileObj: DownloadedReportFile = {
+        kind: 'pdf',
+        fileName: result.fileName,
+        blob: result.blob,
+        blobUrl: result.blobUrl,
+        sizeBytes: result.sizeBytes,
+      };
+      setDownloadedPdf(fileObj);
+
+      toast.success(`Berkas ${result.fileName} berhasil diunduh!`, {
+        duration: 10000,
+        action: {
+          label: 'Buka',
+          onClick: () => setIsViewerOpen(true),
+        },
+      });
     } catch (err) {
       console.error('Download PDF error:', err);
       toast.error('Gagal membuat berkas PDF. Silakan coba lagi.');
@@ -88,6 +137,18 @@ export const ReportPdfModal: React.FC<ReportPdfModalProps> = ({
               <span>{isGeneratingPdf ? 'Membuat PDF...' : 'Unduh PDF (.pdf)'}</span>
             </button>
 
+            {downloadedPdf && (
+              <button
+                type="button"
+                onClick={() => setIsViewerOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer"
+                title="Langsung buka berkas PDF yang baru diunduh"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Buka PDF</span>
+              </button>
+            )}
+
             {/* Tombol Cetak Browser */}
             <button
               type="button"
@@ -110,6 +171,52 @@ export const ReportPdfModal: React.FC<ReportPdfModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Download Ready Bar (no-print) */}
+        {downloadedPdf && (
+          <div className="bg-emerald-950/90 border-b border-emerald-800/80 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs no-print">
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="font-bold text-emerald-100 truncate">
+                {downloadedPdf.fileName}
+              </span>
+              <span className="text-[11px] text-emerald-300/80 shrink-0">
+                ({formatReportFileSize(downloadedPdf.sizeBytes)})
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsViewerOpen(true)}
+                className="px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center gap-1 transition cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Buka</span>
+              </button>
+              <a
+                href={downloadedPdf.blobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white font-bold text-xs flex items-center gap-1 transition"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Buka di Tab</span>
+              </a>
+              {canShareReportFile(downloadedPdf) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareOrOpenReportFile(downloadedPdf).catch(() => {});
+                  }}
+                  className="px-3 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Buka di App</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Modal Body / Scrollable A4 Document Preview */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-950 flex justify-center report-modal-body">
@@ -440,6 +547,13 @@ export const ReportPdfModal: React.FC<ReportPdfModalProps> = ({
           </button>
         </div>
       </div>
+
+      {isViewerOpen && downloadedPdf && (
+        <DownloadedReportViewerModal
+          file={downloadedPdf}
+          onClose={() => setIsViewerOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -38,6 +38,8 @@ import {
   isProTier,
   normalizeTier,
   getLaundryLimits,
+  resolveEffectiveSubscriptionEndDate,
+  getRemainingSubscriptionDays,
   HARGA_PREMIUM_BULANAN,
   HARGA_PRO_BULANAN,
   calculateNextSubscriptionEndDate,
@@ -117,14 +119,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Perhitungan Sisa Masa Aktif Langganan
   const ownerUser = StorageService.get<User[]>('users', []).find((u) => u.role === 'owner') || defaultOwnerUser;
   const effectiveEndDate =
-    currentUser.subscriptionEndDate ||
-    (currentUser.role !== 'owner' ? ownerUser?.subscriptionEndDate : undefined) ||
-    defaultOwnerUser.subscriptionEndDate ||
+    resolveEffectiveSubscriptionEndDate(currentUser) ||
+    (currentUser.role !== 'owner' ? resolveEffectiveSubscriptionEndDate(ownerUser) : null) ||
     Date.now();
 
-  const sisaHari = Math.max(
-    0,
-    Math.ceil((effectiveEndDate - Date.now()) / (1000 * 60 * 60 * 24))
+  const sisaHari = getRemainingSubscriptionDays(
+    currentUser.subscriptionEndDate ? currentUser : { ...currentUser, subscriptionEndDate: effectiveEndDate }
   );
 
   const tanggalBerakhirStr = formatDateIndo(effectiveEndDate);
@@ -585,9 +585,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Sisa Hari di Ujung Kanan Atas */}
         <div className="flex flex-col items-end shrink-0 text-right px-2">
           <div className="text-xm font-bold leading-none">
-            {isNewcomer ? (
-              <span className="text-emerald-700 font-extrabold text-xs sm:text-sm">Gratis</span>
-            ) : sisaHari > 0 ? (
+            {sisaHari > 0 ? (
               <span className={sisaHari <= 5 ? 'text-amber-700 font-black' : 'text-slate-800 font-black'}>
                 {sisaHari} <span className="text-[11px] font-semibold text-slate-500 font-sans">Hari</span>
               </span>
@@ -615,10 +613,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {limits.label}
           </span>
           <p className="text-[11px] text-slate-500 font-medium truncate">
-            {isNewcomer
-              ? '• 50 nota/bln & 1 cabang'
-              : sisaHari > 0
-              ? `• s/d ${tanggalBerakhirStr}`
+            {sisaHari > 0
+              ? `• ${isNewcomer ? 'Trial fitur Premium' : 'Aktif'} s/d ${tanggalBerakhirStr}`
+              : isNewcomer
+              ? '• Masa percobaan 7 hari berakhir'
               : '• Masa aktif berakhir'}
           </p>
         </div>

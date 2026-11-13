@@ -17,7 +17,12 @@ import {
 import { auth } from '../firebase';
 import { User } from '../types';
 import { formatDateIndo, formatRupiah } from '../utils/formatters';
-import { HARGA_PREMIUM_BULANAN, HARGA_PRO_BULANAN } from '../utils/subscription';
+import {
+  HARGA_PREMIUM_BULANAN,
+  HARGA_PRO_BULANAN,
+  getRemainingSubscriptionDays,
+  resolveEffectiveSubscriptionEndDate,
+} from '../utils/subscription';
 import { useConfirm, useToast } from './NotificationContext';
 import {
   SUPER_ADMIN_EMAILS,
@@ -188,9 +193,10 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
       : parsedTopupAmount;
   const packageLabel = grantAction === 'extend_pro' ? 'Paket Pro' : 'Paket Premium';
 
-  const targetSisaHari = foundUser?.subscriptionEndDate
-    ? Math.max(0, Math.ceil((foundUser.subscriptionEndDate - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  const effectiveTargetSubEnd = foundUser
+    ? resolveEffectiveSubscriptionEndDate(foundUser)
+    : null;
+  const targetSisaHari = foundUser ? getRemainingSubscriptionDays(foundUser) : 0;
 
   const handleSubmitGrant = async () => {
     if (!foundUser) return;
@@ -455,12 +461,14 @@ export const SuperAdminBillingModal: React.FC<SuperAdminBillingModalProps> = ({
                         ? targetSisaHari > 0
                           ? `Premium · ${targetSisaHari} Hari Tersisa`
                           : 'Premium · Masa Aktif Habis'
-                        : 'Newcomer (Gratis)'}
+                        : targetSisaHari > 0
+                        ? `Trial 7 Hari · ${targetSisaHari} Hari Tersisa`
+                        : 'Trial 7 Hari · Masa Trial Habis'}
                     </div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
-                      {foundUser.subscriptionEndDate
-                        ? `Berakhir: ${formatDateIndo(foundUser.subscriptionEndDate)}`
-                        : 'Kuota dasar tanpa batas hari'}
+                      {effectiveTargetSubEnd
+                        ? `Berakhir: ${formatDateIndo(effectiveTargetSubEnd)}`
+                        : 'Masa percobaan 7 hari sejak pendaftaran'}
                     </div>
                   </div>
 

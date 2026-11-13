@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useMemo, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useMemo, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -28,6 +28,11 @@ import {
   Info,
   Building2,
   Users,
+  Eye,
+  ExternalLink,
+  FileText,
+  X,
+  Share2,
 } from 'lucide-react';
 import { Transaksi, Pengeluaran, SettingsData, Laundry, StaffPerformanceSummary } from '../types';
 import { formatRupiah, formatShortDate, formatReceiptDate, formatLocalDateKey, extractTransaksiCashInEntries } from '../utils/formatters';
@@ -39,9 +44,20 @@ import type { LaporanPdfData } from '../utils/pdfExport';
 import { useToast } from '../components/NotificationContext';
 import { getLaundryLimits } from '../utils/subscription';
 import type { BranchPerformanceData } from '../components/BranchComparisonD3Chart';
+import type { DownloadedReportFile } from '../components/DownloadedReportViewerModal';
+import {
+  canShareReportFile,
+  shareOrOpenReportFile,
+  formatReportFileSize,
+} from '../components/DownloadedReportViewerModal';
 
 const LazyReportPdfModal = lazy(() =>
   import('../components/ReportPdfModal').then((m) => ({ default: m.ReportPdfModal }))
+);
+const LazyDownloadedReportViewerModal = lazy(() =>
+  import('../components/DownloadedReportViewerModal').then((m) => ({
+    default: m.DownloadedReportViewerModal,
+  }))
 );
 const LazyBranchComparisonD3Chart = lazy(() =>
   import('../components/BranchComparisonD3Chart').then((m) => ({
@@ -93,6 +109,26 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
   const [showPdfModal, setShowPdfModal] = useState<boolean>(false);
   const [monthArchive, setMonthArchive] = useState<Transaksi[]>([]);
   const [prevMonthArchive, setPrevMonthArchive] = useState<Transaksi[]>([]);
+  const [lastDownloadedFile, setLastDownloadedFile] = useState<DownloadedReportFile | null>(null);
+  const [viewingDownloadedFile, setViewingDownloadedFile] = useState<DownloadedReportFile | null>(null);
+  const lastBlobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (lastBlobUrlRef.current) {
+        URL.revokeObjectURL(lastBlobUrlRef.current);
+        lastBlobUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  const registerDownloadedFile = (fileObj: DownloadedReportFile) => {
+    if (lastBlobUrlRef.current && lastBlobUrlRef.current !== fileObj.blobUrl) {
+      URL.revokeObjectURL(lastBlobUrlRef.current);
+    }
+    lastBlobUrlRef.current = fileObj.blobUrl;
+    setLastDownloadedFile(fileObj);
+  };
 
   // Ambil pengaturan toko untuk nama laundry dan kop surat cetak
   const settings = useMemo(() => {
@@ -723,8 +759,23 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
       };
 
       const { exportLaporanToExcel } = await import('../utils/excelExport');
-      exportLaporanToExcel(exportPayload, filteredTrx, filteredExp);
-      toast.success('Berkas Excel (.xlsx) berhasil diunduh!');
+      const result = exportLaporanToExcel(exportPayload, filteredTrx, filteredExp);
+      const fileObj: DownloadedReportFile = {
+        kind: 'excel',
+        fileName: result.fileName,
+        blob: result.blob,
+        blobUrl: result.blobUrl,
+        sizeBytes: result.sizeBytes,
+        sheets: result.sheets,
+      };
+      registerDownloadedFile(fileObj);
+      toast.success(`Berkas Excel ${result.fileName} berhasil diunduh!`, {
+        duration: 10000,
+        action: {
+          label: 'Buka',
+          onClick: () => setViewingDownloadedFile(fileObj),
+        },
+      });
     } catch (err) {
       console.error('Export Excel error:', err);
       toast.error('Gagal mengekspor berkas Excel. Coba lagi.');
@@ -784,8 +835,22 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
 
     try {
       const { generateLaporanPdf } = await import('../utils/pdfExport');
-      const fileName = generateLaporanPdf(pdfPayload);
-      toast.success(`Berkas PDF ${fileName} berhasil diunduh ke HP/PC!`);
+      const result = generateLaporanPdf(pdfPayload);
+      const fileObj: DownloadedReportFile = {
+        kind: 'pdf',
+        fileName: result.fileName,
+        blob: result.blob,
+        blobUrl: result.blobUrl,
+        sizeBytes: result.sizeBytes,
+      };
+      registerDownloadedFile(fileObj);
+      toast.success(`Berkas PDF ${result.fileName} berhasil diunduh!`, {
+        duration: 10000,
+        action: {
+          label: 'Buka',
+          onClick: () => setViewingDownloadedFile(fileObj),
+        },
+      });
     } catch (err) {
       console.error('Download PDF error:', err);
       toast.error('Gagal mengunduh PDF. Membuka pratinjau...');
@@ -1044,6 +1109,89 @@ const [showMonthPickerModal, setShowMonthPickerModal] = useState<boolean>(false)
     </div>
 
       <main className="flex-1 p-2 md:p-6 space-y-1 md:space-y-1 overflow-y-auto max-w-xl md:max-w-5xl  w-full no-print">
+        {/* Banner Cepat Buka File yang Baru Diunduh (PDF / Excel) */}
+        {lastDownloadedFile && (
+          <div className="mb-2 bg-emerald-50 border border-emerald-200 rounded-2xl p-3 shadow-xs flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  lastDownloadedFile.kind === 'excel'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-[#800000] text-amber-300'
+                }`}
+              >
+                {lastDownloadedFile.kind === 'excel' ? (
+                  <FileSpreadsheet className="w-5 h-5" />
+                ) : (
+                  <FileText className="w-5 h-5" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-black text-slate-900 truncate">
+                  {lastDownloadedFile.fileName}
+                </p>
+                <p className="text-[11px] text-emerald-800 font-medium">
+                  Siap dibuka • {formatReportFileSize(lastDownloadedFile.sizeBytes)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setViewingDownloadedFile(lastDownloadedFile)}
+                className="px-3.5 py-1.5 rounded-xl bg-[#800000] hover:bg-[#660000] text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-amber-300" />
+                <span>Buka {lastDownloadedFile.kind === 'excel' ? 'Excel' : 'PDF'}</span>
+              </button>
+
+              {lastDownloadedFile.kind === 'pdf' && (
+                <a
+                  href={lastDownloadedFile.blobUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs flex items-center gap-1 transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Tab Baru</span>
+                </a>
+              )}
+
+              {canShareReportFile(lastDownloadedFile) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareOrOpenReportFile(lastDownloadedFile).catch(() => {});
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Buka di App</span>
+                </button>
+              )}
+
+              <a
+                href={lastDownloadedFile.blobUrl}
+                download={lastDownloadedFile.fileName}
+                className="p-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 transition"
+                title="Unduh ulang file"
+              >
+                <Download className="w-4 h-4" />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setLastDownloadedFile(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-emerald-100/60 transition cursor-pointer"
+                title="Tutup banner"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ======================================================== */}
         {/* TAB 1: RINGKASAN KEUANGAN                                */}
         {/* ======================================================== */}
@@ -2589,6 +2737,17 @@ className="text-[10px] text-slate-800 flex items-center gap-1 max-w-[160px] trun
             isOpen={showPdfModal}
             onClose={() => setShowPdfModal(false)}
             data={pdfPayload}
+          />
+        </Suspense>
+      )}
+
+      {/* Modal Buka Langsung File PDF / Excel yang Baru Diunduh */}
+      {viewingDownloadedFile && (
+        <Suspense fallback={null}>
+          <LazyDownloadedReportViewerModal
+            file={viewingDownloadedFile}
+            onClose={() => setViewingDownloadedFile(null)}
+            onOpenA4Preview={() => setShowPdfModal(true)}
           />
         </Suspense>
       )}

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { User } from '../types';
 import { formatRupiah } from '../utils/formatters';
+import { getRemainingSubscriptionDays } from '../utils/subscription';
 import { useToast } from './NotificationContext';
 import type { PaymentPurpose, MidtransVerifyResult } from '../services/midtransService';
 import {
@@ -67,12 +68,7 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
 
   const isNewcomer = !currentUser.subscriptionType || currentUser.subscriptionType === 'newcomer';
   const effectiveSisaHari =
-    sisaHari !== undefined
-      ? sisaHari
-      : Math.max(
-          0,
-          Math.ceil(((currentUser.subscriptionEndDate || Date.now()) - Date.now()) / (1000 * 60 * 60 * 24))
-        );
+    sisaHari !== undefined ? sisaHari : getRemainingSubscriptionDays(currentUser);
 
   const isExtendPro = purpose === 'extend_pro';
   const isExtendPremium = purpose === 'extend_premium';
@@ -242,17 +238,19 @@ export const TopUpModal: React.FC<TopUpModalProps> = ({
               <span>Status Paket: </span>
               <strong
                 className={
-                  isNewcomer
-                    ? 'text-slate-700 font-bold block'
-                    : effectiveSisaHari > 0
-                    ? 'text-emerald-700 font-bold block'
+                  effectiveSisaHari > 0
+                    ? isNewcomer
+                      ? 'text-amber-700 font-bold block'
+                      : 'text-emerald-700 font-bold block'
                     : 'text-rose-600 font-bold block'
                 }
               >
-                {isNewcomer
-                  ? 'Newcomer (Gratis)'
-                  : effectiveSisaHari > 0
-                  ? `${currentUser.subscriptionType === 'pro' ? 'Pro' : 'Premium'} (${effectiveSisaHari} Hari)`
+                {effectiveSisaHari > 0
+                  ? isNewcomer
+                    ? `Trial 7 Hari (${effectiveSisaHari} Hari)`
+                    : `${currentUser.subscriptionType === 'pro' ? 'Pro' : 'Premium'} (${effectiveSisaHari} Hari)`
+                  : isNewcomer
+                  ? 'Trial 7 Hari Habis'
                   : 'Kedaluwarsa'}
               </strong>
             </div>

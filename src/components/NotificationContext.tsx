@@ -3,11 +3,22 @@ import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+export interface ToastOptions {
+  duration?: number;
+  action?: ToastAction;
+}
+
 export interface ToastItem {
   id: string;
   message: string;
   type: ToastType;
   duration: number;
+  action?: ToastAction;
 }
 
 export interface ConfirmOptions {
@@ -19,11 +30,11 @@ export interface ConfirmOptions {
 }
 
 interface ToastContextValue {
-  show: (message: string, type?: ToastType, duration?: number) => void;
-  success: (message: string, duration?: number) => void;
-  error: (message: string, duration?: number) => void;
-  warning: (message: string, duration?: number) => void;
-  info: (message: string, duration?: number) => void;
+  show: (message: string, type?: ToastType, durationOrOptions?: number | ToastOptions) => void;
+  success: (message: string, durationOrOptions?: number | ToastOptions) => void;
+  error: (message: string, durationOrOptions?: number | ToastOptions) => void;
+  warning: (message: string, durationOrOptions?: number | ToastOptions) => void;
+  info: (message: string, durationOrOptions?: number | ToastOptions) => void;
 }
 
 interface ConfirmContextValue {
@@ -73,9 +84,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: ToastType = 'info', duration = 3000) => {
+    (message: string, type: ToastType = 'info', durationOrOptions: number | ToastOptions = 3000) => {
       const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newToast: ToastItem = { id, message, type, duration };
+      const opts: ToastOptions =
+        typeof durationOrOptions === 'number'
+          ? { duration: durationOrOptions }
+          : durationOrOptions || {};
+      const duration = opts.duration ?? (opts.action ? 9000 : 3000);
+      const newToast: ToastItem = { id, message, type, duration, action: opts.action };
 
       // Limit max visible toasts to 3
       setToasts((prev) => [...prev.slice(-2), newToast]);
@@ -92,10 +108,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const toastMethods = useMemo<ToastContextValue>(
     () => ({
       show: showToast,
-      success: (msg, dur = 3000) => showToast(msg, 'success', dur),
-      error: (msg, dur = 3500) => showToast(msg, 'error', dur),
-      warning: (msg, dur = 3000) => showToast(msg, 'warning', dur),
-      info: (msg, dur = 3000) => showToast(msg, 'info', dur),
+      success: (msg, opt = 3000) => showToast(msg, 'success', opt),
+      error: (msg, opt = 3500) => showToast(msg, 'error', opt),
+      warning: (msg, opt = 3000) => showToast(msg, 'warning', opt),
+      info: (msg, opt = 3000) => showToast(msg, 'info', opt),
     }),
     [showToast]
   );
@@ -296,6 +312,19 @@ const ToastItemComponent: React.FC<{ toast: ToastItem; onDismiss: () => void }> 
             {toast.message}
           </p>
         </div>
+
+        {toast.action && (
+          <button
+            type="button"
+            onClick={() => {
+              toast.action?.onClick();
+              onDismiss();
+            }}
+            className="px-3 py-1.5 rounded-xl bg-[#800000] hover:bg-[#660000] text-white font-black text-xs shadow-sm transition active:scale-95 shrink-0 cursor-pointer"
+          >
+            {toast.action.label}
+          </button>
+        )}
 
         <button
           type="button"

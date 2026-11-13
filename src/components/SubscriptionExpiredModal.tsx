@@ -17,7 +17,10 @@ import {
 } from 'lucide-react';
 import { User } from '../types';
 import { formatRupiah, formatTanggalIndo } from '../utils/formatters';
-import { HARGA_PREMIUM_BULANAN } from '../utils/subscription';
+import {
+  HARGA_PREMIUM_BULANAN,
+  resolveEffectiveSubscriptionEndDate,
+} from '../utils/subscription';
 import { useToast } from './NotificationContext';
 import {
   OFFICIAL_PAYMENT_ACCOUNTS,
@@ -64,8 +67,10 @@ export const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> =
   const walletBalance = currentUser.walletBalance || 0;
   const isBalanceEnough = walletBalance >= selectedCost;
 
-  const tglExpiredFormatted = currentUser.subscriptionEndDate
-    ? formatTanggalIndo(currentUser.subscriptionEndDate, true)
+  const isTrialAccount = !currentUser.subscriptionType || currentUser.subscriptionType === 'newcomer';
+  const effectiveEndDate = resolveEffectiveSubscriptionEndDate(currentUser);
+  const tglExpiredFormatted = effectiveEndDate
+    ? formatTanggalIndo(effectiveEndDate, true)
     : 'Hari ini';
 
   const handleCopy = (text: string, bank: string) => {
@@ -168,10 +173,16 @@ export const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> =
             <div>
               <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-400/20 border border-amber-300/30 text-amber-300 text-[10px] font-black uppercase tracking-wider">
                 <AlertTriangle className="w-3 h-3 text-amber-300" />
-                <span>{sisaHari > 0 ? `Sisa ${sisaHari} Hari` : 'Masa Langganan Habis'}</span>
+                <span>
+                  {sisaHari > 0
+                    ? `Sisa ${sisaHari} Hari`
+                    : isTrialAccount
+                    ? 'Masa Percobaan 7 Hari Habis'
+                    : 'Masa Langganan Habis'}
+                </span>
               </div>
               <h2 className="text-base sm:text-lg font-black tracking-tight text-white mt-1">
-                Perpanjang Paket Premium
+                {isTrialAccount ? 'Aktifkan Paket Premium' : 'Perpanjang Paket Premium'}
               </h2>
             </div>
           </div>
@@ -193,7 +204,11 @@ export const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> =
                 Status Akun Owner
               </span>
               <p className="font-extrabold text-rose-950 text-xs sm:text-sm">
-                {sisaHari > 0 ? 'Perpanjang Lebih Awal' : 'Hari Langganan Telah Berakhir'}
+                {sisaHari > 0
+                  ? 'Perpanjang Lebih Awal'
+                  : isTrialAccount
+                  ? 'Masa Percobaan 7 Hari Telah Berakhir'
+                  : 'Hari Langganan Telah Berakhir'}
               </p>
               <div className="text-[11px] text-slate-500 flex items-center gap-1 pt-0.5">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -294,21 +309,7 @@ export const SubscriptionExpiredModal: React.FC<SubscriptionExpiredModalProps> =
                 Pilih Cara Perpanjang Sekarang:
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-
-                
                 <button
-                  type="button"
-                  onClick={() => setShowManualTransfer((prev) => !prev)}
-                  className={`py-3 px-3.5 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${
-                    showManualTransfer
-                      ? 'border-[#800000] bg-rose-50 text-[#800000]'
-                      : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4 shrink-0" />
-                  <span>Transfer Biasa</span>
-                </button>
-                     <button
                   type="button"
                   onClick={() => setShowManualTransfer((prev) => !prev)}
                   className={`py-3 px-3.5 rounded-xl border font-black text-xs flex items-center justify-center gap-2 transition active:scale-98 cursor-pointer ${

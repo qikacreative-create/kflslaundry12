@@ -14,6 +14,7 @@ import {
   normalizeTier,
   HARGA_PREMIUM_BULANAN,
   HARGA_PRO_BULANAN,
+  getRemainingSubscriptionDays,
 } from '../utils/subscription';
 import { formatRupiah } from '../utils/formatters';
 import { buildWhatsAppAdminUrl } from '../services/midtransService';
@@ -101,7 +102,9 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                   ? 'Paket Pro'
                   : activeTier === 'premium'
                   ? 'Paket Premium'
-                  : 'Paket Newcomer (Gratis)'}
+                  : getRemainingSubscriptionDays(currentUser) > 0
+                  ? `Trial 7 Hari (${getRemainingSubscriptionDays(currentUser)} Hari Tersisa)`
+                  : 'Trial 7 Hari (Habis)'}
               </span>
             </div>
             {isOwner && (
@@ -272,11 +275,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 
         {/* Dialog Konfirmasi Potong Saldo */}
         {confirmTier && (() => {
-          const currentEnd = currentUser?.subscriptionEndDate || 0;
-          const sisaHariSekarang = Math.max(
-            0,
-            Math.ceil((currentEnd - Date.now()) / (1000 * 60 * 60 * 24))
-          );
+          const sisaHariSekarang = getRemainingSubscriptionDays(currentUser);
           const isSwitchingPaidTier =
             activeTier !== 'newcomer' && activeTier !== confirmTier && sisaHariSekarang > 0;
           const isExtendingSameTier = activeTier === confirmTier;

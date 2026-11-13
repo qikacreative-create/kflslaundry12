@@ -25,7 +25,12 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { User, Laundry, Transaksi } from '../types';
-import { isProTier, getLaundryLimits } from '../utils/subscription';
+import {
+  isProTier,
+  getLaundryLimits,
+  getRemainingSubscriptionDays,
+  isSubscriptionExpiredForUser,
+} from '../utils/subscription';
 
 export type NavViewType =
   | 'splash'
@@ -93,12 +98,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
   // Subscription calculation
   const limits = getLaundryLimits(currentTier || currentUser.subscriptionType);
-  const isNewcomer = limits.tier === 'newcomer';
-  const subNow = Date.now();
-  const subEnd = currentUser.subscriptionEndDate || (subNow + 7 * 24 * 60 * 60 * 1000);
-  const subDiffMs = subEnd - subNow;
-  const subSisaHari = Math.max(0, Math.ceil(subDiffMs / (1000 * 60 * 60 * 24)));
-  const subIsExpired = !isNewcomer && subDiffMs <= 0;
+  const subSisaHari = getRemainingSubscriptionDays(currentUser);
+  const subIsExpired = isSubscriptionExpiredForUser(currentUser);
   const subPaketNama = limits.label;
 
   interface NavItem {
@@ -263,12 +264,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
         {/* 2. PRIMARY QUICK ACTIONS (+ Transaksi Baru & Catat Kas) */}
         <div className="p-3 border-b border-slate-100 space-y-2">
-          {isNewcomer && activeQueueCount >= 400 ? (
+          {subIsExpired ? (
             <button
               type="button"
-              onClick={onOpenNewTransaksi}
-              title="Transaksi Baru Terkunci. Klik untuk kelola arsip."
-              className={`w-full rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98 shadow-xs bg-red-600 hover:bg-red-700 text-white ${
+              onClick={onOpenExpiredModal || onOpenNewTransaksi}
+              title="Masa aktif berakhir. Klik untuk perpanjang Paket Premium."
+              className={`w-full rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98 shadow-xs bg-red-600 hover:bg-red-700 text-white cursor-pointer ${
                 collapsed ? 'h-10 px-0' : 'py-2.5 px-3'
               }`}
             >
@@ -433,9 +434,9 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
               }
             }}
             title={
-              isNewcomer
-                ? `Paket Langganan: ${subPaketNama} • Gratis . Klik untuk lihat detail & komparasi paket.`
-                : `Paket Langganan: ${subPaketNama} • Sisa ${subSisaHari} Hari. Klik untuk lihat detail & komparasi paket.`
+              subIsExpired
+                ? `Paket Langganan: ${subPaketNama} • Masa aktif berakhir. Klik untuk perpanjang.`
+                : `Paket Langganan: ${subPaketNama} • Sisa ${subSisaHari} Hari. Klik untuk lihat detail & perpanjangan.`
             }
             className="mb-2.5 p-2 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 shadow-2xs cursor-pointer hover:border-amber-300 transition active:scale-98"
           >
@@ -445,15 +446,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
                 {subPaketNama}
               </span>
               <span
-                className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                  isNewcomer
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300/60'
-                    : subIsExpired
+                className={`text-[10px] font-black px-1.5 py-0.5 rounded-full tabular-nums ${
+                  subIsExpired
                     ? 'bg-red-200 text-red-900'
-                    : 'bg-amber-200 text-amber-950'
+                    : subSisaHari <= 2
+                    ? 'bg-amber-200 text-amber-950'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300/60'
                 }`}
               >
-                {isNewcomer ? 'Gratis' : subIsExpired ? 'Habis' : `${subSisaHari} Hari`}
+                {subIsExpired ? 'Habis' : `${subSisaHari} Hari`}
               </span>
             </div>
           </div>
@@ -463,8 +464,12 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           <div className="flex flex-col items-center gap-2">
             <button
               type="button"
-              onClick={() => onSelectView('kelola_owner')}
-              title={isNewcomer ? `${subPaketNama} • Gratis. Klik untuk kelola.` : `${subPaketNama} • Sisa ${subSisaHari} Hari. Klik untuk kelola.`}
+              onClick={() => (subIsExpired && onOpenExpiredModal ? onOpenExpiredModal() : onSelectView('kelola_owner'))}
+              title={
+                subIsExpired
+                  ? `${subPaketNama} • Masa aktif habis. Klik untuk perpanjang.`
+                  : `${subPaketNama} • Sisa ${subSisaHari} Hari. Klik untuk kelola.`
+              }
               className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 border border-amber-300/80 flex items-center justify-center transition hover:bg-amber-200 active:scale-95 cursor-pointer shadow-2xs"
             >
               <Crown className="w-4 h-4 text-amber-700" />

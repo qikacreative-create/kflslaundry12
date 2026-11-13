@@ -26,6 +26,9 @@ import {
   LaundryTier,
   normalizeTier,
   getLaundryLimits,
+  resolveEffectiveSubscriptionEndDate,
+  getRemainingSubscriptionDays,
+  isSubscriptionExpiredForUser,
   EXTRA_BRANCH_PRICE,
   HARGA_PREMIUM_BULANAN,
   HARGA_PRO_BULANAN,
@@ -171,6 +174,10 @@ function safeSetSessionItem(key: string, value: string): void {
 function getValidStoredUser(): User | null {
   const raw = StorageService.get<User | null>('active_user', null);
   if (raw && typeof raw === 'object' && typeof raw.uid === 'string' && raw.uid.trim().length > 0) {
+    const effectiveEnd = resolveEffectiveSubscriptionEndDate(raw);
+    if (effectiveEnd !== null && raw.subscriptionEndDate !== effectiveEnd) {
+      return { ...raw, subscriptionEndDate: effectiveEnd };
+    }
     return raw;
   }
   return null;
@@ -496,18 +503,21 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
       .catch(() => {});
   }, [currentUser?.uid]);
 
+  const isSubscriptionExpired = useMemo(
+    () => isSubscriptionExpiredForUser(currentUser),
+    [currentUser]
+  );
+
   useEffect(() => {
-    if (!currentUser || activeTier === 'newcomer') return;
-    const now = Date.now();
-    const subEnd = currentUser.subscriptionEndDate || 0;
-    if (subEnd > 0 && subEnd <= now) {
+    if (!currentUser) return;
+    if (isSubscriptionExpiredForUser(currentUser)) {
       const hasPrompted = safeGetSessionItem('expired_sub_prompted');
       if (!hasPrompted) {
         setIsExpiredModalOpen(true);
         safeSetSessionItem('expired_sub_prompted', '1');
       }
     }
-  }, [currentUser, activeTier]);
+  }, [currentUser]);
 
   const handleOpenUpgradeModal = (reason?: string) => {
     setUpgradeTriggerReason(reason);
@@ -1573,18 +1583,24 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
       setReceiptModalTrx(updatedTrx);
       setActiveView('dashboard');
     } else {
-      // Create new - check monthly quota
+      // Create new - check subscription expiry & limits
+      if (isSubscriptionExpiredForUser(currentUser)) {
+        toast.warning(
+          activeTier === 'newcomer'
+            ? 'Masa percobaan 7 hari Anda telah berakhir. Silakan perpanjang Paket Premium untuk membuat nota baru.'
+            : 'Masa langganan paket Anda telah berakhir. Silakan perpanjang untuk membuat nota baru.'
+        );
+        setIsExpiredModalOpen(true);
+        return;
+      }
+
       const limits = getLaundryLimits(activeTier);
       if (currentMonthTransactions.length >= limits.maxMonthlyTransactions) {
         toast.warning(
-          limits.tier === 'newcomer'
-            ? `Batas kuota 50 nota transaksi per bulan untuk Paket Newcomer (Gratis) telah tercapai.`
-            : `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai.`
+          `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai.`
         );
         handleOpenUpgradeModal(
-          limits.tier === 'newcomer'
-            ? `Batas kuota 50 transaksi per bulan untuk Paket Newcomer (Gratis) telah tercapai`
-            : `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai`
+          `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai`
         );
         return;
       }
@@ -1826,17 +1842,23 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
   }, [transaksiList, activeLaundryId]);
 
   const handleRequestNewTransaksi = () => {
+    if (isSubscriptionExpiredForUser(currentUser)) {
+      toast.warning(
+        activeTier === 'newcomer'
+          ? 'Masa percobaan 7 hari Anda telah berakhir. Silakan perpanjang Paket Premium untuk membuat nota baru.'
+          : 'Masa langganan paket Anda telah berakhir. Silakan perpanjang untuk membuat nota baru.'
+      );
+      setIsExpiredModalOpen(true);
+      return;
+    }
+
     const limits = getLaundryLimits(activeTier);
     if (currentMonthTransactions.length >= limits.maxMonthlyTransactions) {
       toast.warning(
-        limits.tier === 'newcomer'
-          ? `Batas kuota 50 nota transaksi per bulan untuk Paket Newcomer (Gratis) telah tercapai.`
-          : `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai.`
+        `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai.`
       );
       handleOpenUpgradeModal(
-        limits.tier === 'newcomer'
-          ? `Batas kuota 50 transaksi per bulan untuk Paket Newcomer (Gratis) telah tercapai`
-          : `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai`
+        `Batas transaksi bulanan (${limits.maxMonthlyTransactions} transaksi/bulan) telah tercapai`
       );
       return;
     }
@@ -1952,10 +1974,12 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
   };
 
   const handleProceedCreateNewFromLimit = () => {
-    if (activeTier === 'newcomer' && activeUncollectedTrx.length >= 400) {
+    if (isSubscriptionExpiredForUser(currentUser)) {
       toast.warning(
-        'Transaksi aktif telah mencapai batas maksimal (400 pesanan). Harap arsipkan pesanan terlebih dahulu sebelum membuat transaksi baru.'
+        'Masa aktif langganan atau percobaan 7 hari telah berakhir. Silakan perpanjang Paket Premium terlebih dahulu.'
       );
+      setIsLimitModalOpen(false);
+      setIsExpiredModalOpen(true);
       return;
     }
     setIsLimitModalOpen(false);
@@ -2011,6 +2035,14 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
   ): Promise<boolean> => {
     if (!currentUser) {
       toast.error('Silakan masuk terlebih dahulu.');
+      return false;
+    }
+
+    if (isSubscriptionExpiredForUser(currentUser)) {
+      toast.warning(
+        'Masa percobaan 7 hari atau langganan Anda telah berakhir. Silakan perpanjang Paket Premium untuk menambah cabang.'
+      );
+      setIsExpiredModalOpen(true);
       return false;
     }
 
@@ -2180,9 +2212,17 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
       return false;
     }
 
+    if (isSubscriptionExpiredForUser(currentUser)) {
+      toast.warning(
+        'Masa percobaan 7 hari atau langganan Anda telah berakhir. Perpanjang Paket Premium terlebih dahulu untuk menambah kasir.'
+      );
+      setIsExpiredModalOpen(true);
+      return false;
+    }
+
     const limits = getLaundryLimits(activeTier);
 
-    if (limits.tier === 'newcomer' || limits.maxCashiers <= 0) {
+    if (limits.maxCashiers <= 0) {
       toast.warning('Fitur pembuatan akun kasir tambahan hanya untuk Paket Premium.');
       return false;
     }
@@ -2677,36 +2717,37 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
         )}
 
         {activeView === 'tambah_edit' && (
-          !transaksiToEdit && activeTier === 'newcomer' && activeUncollectedTrx.length >= 400 ? (
+          !transaksiToEdit && isSubscriptionExpired ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-100 min-h-[75vh]">
-              <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-7 border border-red-200 shadow-xl space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-red-100 text-red-600 flex items-center justify-center mx-auto shadow-inner">
+              <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-7 border border-rose-200 shadow-xl space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-rose-100 text-[#800000] flex items-center justify-center mx-auto shadow-inner">
                   <Lock className="w-8 h-8 stroke-[2.5]" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-red-100 text-red-800">
-                    Batas Penuh (Maks. 400)
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                    {activeTier === 'newcomer' ? 'Masa Percobaan 7 Hari Berakhir' : 'Masa Langganan Berakhir'}
                   </span>
-                  <h2 className="text-lg font-black text-slate-900 mt-1">
-                    Pembuatan Transaksi Baru Dikunci
+                  <h2 className="text-lg font-black text-slate-900 mt-1.5">
+                    Pembuatan Nota Baru Dikunci
                   </h2>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Terdapat <strong className="text-red-600 font-black">{activeUncollectedTrx.length} pesanan aktif belum diambil</strong> di cabang ini.
-                  Sistem mengunci pembuatan transaksi baru sampai ada progres pengarsipan transaksi lama.
+                  {activeTier === 'newcomer'
+                    ? 'Masa percobaan 7 hari Anda telah selesai. Aktifkan Paket Premium untuk terus membuat transaksi baru tanpa batas.'
+                    : 'Masa aktif paket langganan Anda telah habis. Perpanjang Paket Premium untuk membuka kembali pembuatan transaksi baru.'}
                 </p>
                 <div className="pt-2 space-y-2">
                   <button
                     type="button"
-                    onClick={() => setIsLimitModalOpen(true)}
-                    className="w-full py-3 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-md transition active:scale-95"
+                    onClick={() => setIsExpiredModalOpen(true)}
+                    className="w-full py-3 px-4 rounded-xl bg-[#800000] hover:bg-[#660000] text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
                   >
-                    Buka Opsi Pengarsipan Cepat
+                    Perpanjang Paket Premium Sekarang
                   </button>
                   <button
                     type="button"
                     onClick={navigateBack}
-                    className="w-full py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition active:scale-95"
+                    className="w-full py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition active:scale-95 cursor-pointer"
                   >
                     Kembali ke Halaman Sebelumnya
                   </button>
@@ -3118,13 +3159,7 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
               currentUser={currentUser}
               onExtendSubscription={handleExtendSubscription}
               onMidtransSettled={handleMidtransSettled}
-              sisaHari={Math.max(
-                0,
-                Math.ceil(
-                  ((currentUser.subscriptionEndDate || Date.now()) - Date.now()) /
-                    (1000 * 60 * 60 * 24)
-                )
-              )}
+              sisaHari={getRemainingSubscriptionDays(currentUser)}
             />
           )}
 

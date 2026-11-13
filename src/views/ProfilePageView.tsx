@@ -250,40 +250,40 @@ export const ProfilePageView: React.FC<ProfilePageViewProps> = ({
                 Pilihan Paket
               </p>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                Mulai gratis, upgrade sesuai kebutuhan.
+                Coba penuh 7 hari, lanjut sesuai kebutuhan.
               </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl">
-              {/* Newcomer */}
+              {/* Trial 7 Hari */}
               <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 flex flex-col justify-between gap-6">
                 <div className="space-y-4">
                   <div className="flex items-baseline justify-between gap-2">
-                    <h3 className="text-base font-bold text-slate-900">Newcomer</h3>
+                    <h3 className="text-base font-bold text-slate-900">Trial 7 Hari</h3>
                     <span className="text-xs text-slate-500">Otomatis saat daftar</span>
                   </div>
 
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-3xl font-extrabold text-slate-900 tabular-nums">Rp 0</span>
-                    <span className="text-xs text-slate-500">/ selamanya</span>
+                    <span className="text-xs text-slate-500">/ 7 hari pertama</span>
                   </div>
 
                   <ul className="space-y-2.5 text-sm text-slate-600 pt-4 border-t border-slate-100">
                     <li className="flex items-center gap-2.5">
                       <span className="text-slate-400">&bull;</span>
-                      <span>50 nota transaksi per bulan</span>
+                      <span>Semua fitur Paket Premium terbuka penuh</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <span className="text-slate-400">&bull;</span>
-                      <span>50 data pelanggan &amp; 5 layanan</span>
+                      <span>Nota, pelanggan &amp; layanan tanpa batas</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <span className="text-slate-400">&bull;</span>
-                      <span>1 akun Owner untuk 1 outlet</span>
+                      <span>1 akun Kasir (sinkron beda HP) &amp; staf</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <span className="text-slate-400">&bull;</span>
-                      <span>Cetak Bluetooth &amp; nota WhatsApp</span>
+                      <span>Cetak Bluetooth, logo struk &amp; nota WhatsApp</span>
                     </li>
                   </ul>
                 </div>
@@ -293,7 +293,7 @@ export const ProfilePageView: React.FC<ProfilePageViewProps> = ({
                   onClick={onOpenLogin}
                   className="h-10 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-semibold inline-flex items-center justify-center transition-colors cursor-pointer"
                 >
-                  Daftar Gratis
+                  Coba Gratis 7 Hari
                 </button>
               </div>
 

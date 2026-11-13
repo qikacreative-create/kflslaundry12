@@ -38,11 +38,24 @@ export interface LaporanSummaryExportData {
   dailyRows: [string, { trxCount: number; masuk: number; keluar: number }][];
 }
 
+export interface ExcelPreviewSheet {
+  name: string;
+  rows: (string | number)[][];
+}
+
+export interface GeneratedExcelResult {
+  fileName: string;
+  blob: Blob;
+  blobUrl: string;
+  sizeBytes: number;
+  sheets: ExcelPreviewSheet[];
+}
+
 export function exportLaporanToExcel(
   summary: LaporanSummaryExportData,
   transaksiList: Transaksi[],
   pengeluaranList: Pengeluaran[]
-): string {
+): GeneratedExcelResult {
   const wb = XLSX.utils.book_new();
 
   // 1. SHEET 1: RINGKASAN EKSEKUTIF
@@ -280,31 +293,40 @@ export function exportLaporanToExcel(
   const safePeriod = (summary.periodeLabel || 'Semua_Periode').replace(/[^a-zA-Z0-9_-]/g, '_');
   const fileName = `Laporan_${safeName}_${safePeriod}.xlsx`;
 
+  const sheets: ExcelPreviewSheet[] = wb.SheetNames.map((name) => ({
+    name,
+    rows: XLSX.utils.sheet_to_json(wb.Sheets[name], {
+      header: 1,
+      defval: '',
+    }) as (string | number)[][],
+  }));
+
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const blobUrl = URL.createObjectURL(blob);
+
   try {
     XLSX.writeFile(wb, fileName);
   } catch (errWrite) {
-    console.warn('XLSX.writeFile() gagal, mencoba fallback Blob buffer:', errWrite);
-    try {
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-      }, 1500);
-    } catch (errBlob) {
-      console.error('Semua metode download Excel gagal:', errBlob);
-      throw errBlob;
-    }
+    console.warn('XLSX.writeFile() gagal, mencoba fallback Blob anchor download:', errWrite);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (link.parentNode) document.body.removeChild(link);
+    }, 500);
   }
 
-  return fileName;
+  return {
+    fileName,
+    blob,
+    blobUrl,
+    sizeBytes: blob.size,
+    sheets,
+  };
 }

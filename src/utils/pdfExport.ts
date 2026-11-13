@@ -36,10 +36,17 @@ export interface LaporanPdfData {
   staffList?: StaffPerformanceSummary[];
 }
 
+export interface GeneratedPdfResult {
+  fileName: string;
+  blob: Blob;
+  blobUrl: string;
+  sizeBytes: number;
+}
+
 /**
  * Membuat dan mengunduh berkas PDF resmi laporan keuangan A4
  */
-export function generateLaporanPdf(data: LaporanPdfData): string {
+export function generateLaporanPdf(data: LaporanPdfData): GeneratedPdfResult {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -380,30 +387,30 @@ export function generateLaporanPdf(data: LaporanPdfData): string {
   const safePeriod = periodeLabel.replace(/[^a-zA-Z0-9_-]/g, '_');
   const fileName = `Laporan_${safeName}_${safePeriod}.pdf`;
 
-  // Simpan berkas dengan fallback berlapis (saveAs -> blob URL -> dataUri)
+  // Buat Blob & URL permanen (di-revoke oleh pemanggil saat diganti/unmount) agar tombol "Buka" berfungsi langsung
+  const blob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(blob);
+
+  // Simpan berkas dengan fallback berlapis (saveAs -> anchor download)
   try {
     doc.save(fileName);
   } catch (errSave) {
     console.warn('doc.save() gagal, menggunakan fallback Blob anchor download:', errSave);
-    try {
-      const blob = doc.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-      }, 1500);
-    } catch (errBlob) {
-      console.warn('Blob fallback gagal, membuka data URI di tab baru:', errBlob);
-      const dataUri = doc.output('datauristring');
-      window.open(dataUri, '_blank');
-    }
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (link.parentNode) document.body.removeChild(link);
+    }, 500);
   }
 
-  return fileName;
+  return {
+    fileName,
+    blob,
+    blobUrl,
+    sizeBytes: blob.size,
+  };
 }

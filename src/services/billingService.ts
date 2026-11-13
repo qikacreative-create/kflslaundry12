@@ -71,6 +71,7 @@ export interface AdminLookedUpUser {
   walletBalance: number;
   subscriptionType: string;
   subscriptionEndDate: number | null;
+  createdAt?: number | null;
   branches: Array<{
     id: string;
     namaLaundry: string;

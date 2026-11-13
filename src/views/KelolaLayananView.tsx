@@ -19,7 +19,7 @@ import {
 import { Layanan, SettingsData } from '../types';
 import { formatRupiah, formatRibuanInput, bersihkanTitik } from '../utils/formatters';
 import { useToast, useConfirm } from '../components/NotificationContext';
-import { isProTier, getLaundryLimits } from '../utils/subscription';
+import { isProTier, getLaundryLimits, UNLIMITED_QUOTA } from '../utils/subscription';
 import { SwipeableItem } from '../components/SwipeableItem';
 
 interface KelolaLayananViewProps {
@@ -317,8 +317,8 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
           <div>
             <h1 className="font-black text-base tracking-tight leading-tight">Kelola Daftar Harga</h1>
             <p className="text-[11px] text-white/80 font-medium">
-              {limits.tier === 'newcomer'
-                ? `${layananList.length}/${limits.maxServices} Layanan Aktif (Newcomer)`
+              {limits.maxServices < UNLIMITED_QUOTA
+                ? `${layananList.length}/${limits.maxServices} Layanan Aktif (${limits.label})`
                 : `${layananList.length} Layanan Aktif (Unlimited)`}
             </p>
           </div>

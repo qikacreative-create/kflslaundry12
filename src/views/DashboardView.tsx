@@ -29,7 +29,11 @@ import type { TransitionPickupData } from '../components/QuickTransitionPickupMo
 import { formatRupiah, formatShortDate, formatShortTime } from '../utils/formatters';
 import { StorageService } from '../utils/storage';
 import { PWAInstallButton } from '../components/PWAInstallButton';
-import { getLaundryLimits } from '../utils/subscription';
+import {
+  getLaundryLimits,
+  getRemainingSubscriptionDays,
+  isSubscriptionExpiredForUser,
+} from '../utils/subscription';
 import { useConfirm, useToast } from '../components/NotificationContext';
 import { useDeferredWidgetMount } from '../components/dashboard/useDeferredWidgetMount';
 
@@ -427,10 +431,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const isNewcomer = limits.tier === 'newcomer';
   const isMonthlyQuotaFull = currentMonthTrxCount >= limits.maxMonthlyTransactions;
 
-  const now = Date.now();
-  const subscriptionEnd = currentUser.subscriptionEndDate || 0;
-  const diffMs = subscriptionEnd - now;
-  const isExpired = !isNewcomer && subscriptionEnd > 0 && diffMs <= 0;
+  const sisaHari = getRemainingSubscriptionDays(currentUser);
+  const isExpired = isSubscriptionExpiredForUser(currentUser);
 
   const formattedToday = useMemo(
     () =>
@@ -588,11 +590,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <Crown className="w-2.5 h-2.5 shrink-0" />
                           <span>{limits.label}</span>
                         </span>
-                        {!isNewcomer && (
-                          <span className="text-[9px] text-rose-100/90 font-medium">
-                            {isExpired ? '• Habis' : `• ${Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))} Hari`}
-                          </span>
-                        )}
+                        <span className="text-[9px] text-rose-100/90 font-medium tabular-nums">
+                          {isExpired ? '• Habis' : `• ${sisaHari} Hari`}
+                        </span>
                       </div>
                     </button>
                   ) : (
@@ -698,7 +698,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className=" ">
             <PWAInstallButton variant="banner" />
 
-            {isExpired && !isNewcomer && (
+            {isExpired && (
               <div
                 onClick={() => (onOpenExpiredModal || onOpenKelolaOwner)()}
                 className="p-3 rounded-2xl bg-gradient-to-r from-rose-900 via-rose-800 to-[#800000] text-white border border-rose-500/40 shadow-sm cursor-pointer active:scale-98 transition flex items-center justify-between gap-2.5"
@@ -710,7 +710,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-black text-xs text-amber-300 tracking-wide uppercase">
-                        Masa Langganan Habis
+                        {isNewcomer ? 'Masa Percobaan 7 Hari Habis' : 'Masa Langganan Habis'}
                       </span>
                       {currentUser.role === 'owner' && (
                         <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded font-bold font-mono">
@@ -719,7 +719,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       )}
                     </div>
                     <p className="text-[11px] text-rose-100 truncate mt-0.5">
-                      Klik untuk lihat saldo, isi saldo, &amp; perpanjang 30 hari.
+                      Pembuatan nota baru dikunci. Klik untuk perpanjang Paket Premium.
                     </p>
                   </div>
                 </div>

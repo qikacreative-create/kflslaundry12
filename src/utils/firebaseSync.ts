@@ -34,6 +34,10 @@ import {
 import { defaultLayananList, defaultSettings, StorageService } from './storage';
 import { IndexedDbService } from './indexedDb';
 import { formatNomorWA } from './formatters';
+import {
+  NEWCOMER_TRIAL_DURATION_MS,
+  resolveEffectiveSubscriptionEndDate,
+} from './subscription';
 
 export interface PendingSignUpInfo {
   namaLaundry?: string;
@@ -136,6 +140,9 @@ export class FirebaseSyncService {
     const userName = explicitOwnerName || explicitLaundryName || 'Owner';
     const phone = explicitPhone;
 
+    const now = Date.now();
+    const trialEndDate = now + NEWCOMER_TRIAL_DURATION_MS;
+
     const newUser: User = {
       uid: firebaseUser.uid,
       emailOrPhone: emailStr || phone || '',
@@ -147,9 +154,9 @@ export class FirebaseSyncService {
       laundryId: defaultLaundryId,
       laundries: { [defaultLaundryId]: branchName },
       walletBalance: 0,
-      createdAt: Date.now(),
+      createdAt: now,
       subscriptionType: 'newcomer',
-      subscriptionEndDate: null, // Newcomer aktif gratis selamanya berbasis kuota
+      subscriptionEndDate: trialEndDate, // Masa percobaan 7 hari (Trial Premium)
     };
 
     const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -189,6 +196,19 @@ export class FirebaseSyncService {
             StorageService.set('manual_cash_logs', []);
           }
 
+          const authCreationMs = auth.currentUser?.metadata?.creationTime
+            ? Date.parse(auth.currentUser.metadata.creationTime)
+            : null;
+          const resolvedCashierSubType =
+            branchData?.subscriptionType || rawUser.subscriptionType || 'newcomer';
+          const resolvedCashierSubEnd = resolveEffectiveSubscriptionEndDate({
+            subscriptionType: resolvedCashierSubType,
+            subscriptionEndDate: branchData?.subscriptionEndDate ?? rawUser.subscriptionEndDate ?? null,
+            createdAt: typeof rawUser.createdAt === 'number' ? rawUser.createdAt : null,
+            fallbackAuthCreationTime:
+              authCreationMs && Number.isFinite(authCreationMs) ? authCreationMs : null,
+          });
+
           const cashierUser: User = {
             ...rawUser,
             uid: firebaseUser.uid,
@@ -200,8 +220,8 @@ export class FirebaseSyncService {
             laundryId: assignedLaundryId,
             laundries: { [assignedLaundryId]: resolvedBranchName },
             walletBalance: 0,
-            subscriptionType: branchData?.subscriptionType || rawUser.subscriptionType || 'premium',
-            subscriptionEndDate: branchData?.subscriptionEndDate ?? rawUser.subscriptionEndDate ?? null,
+            subscriptionType: resolvedCashierSubType,
+            subscriptionEndDate: resolvedCashierSubEnd,
           };
 
           StorageService.set('active_user', cashierUser);
@@ -230,7 +250,23 @@ export class FirebaseSyncService {
             : explicitOwnerName ||
               (typeof resolvedDisplayName === 'string' && resolvedDisplayName.trim() ? resolvedDisplayName.trim() : 'Owner');
 
-        const isNewcomerProfile = !rawUser.subscriptionType || rawUser.subscriptionType === 'newcomer';
+        const authCreationMs = auth.currentUser?.metadata?.creationTime
+          ? Date.parse(auth.currentUser.metadata.creationTime)
+          : null;
+        const resolvedCreatedAt =
+          typeof rawUser.createdAt === 'number' && rawUser.createdAt > 0
+            ? rawUser.createdAt
+            : authCreationMs && Number.isFinite(authCreationMs)
+            ? authCreationMs
+            : null;
+        const resolvedSubEnd = resolveEffectiveSubscriptionEndDate({
+          subscriptionType: rawUser.subscriptionType || 'newcomer',
+          subscriptionEndDate: rawUser.subscriptionEndDate ?? null,
+          createdAt: resolvedCreatedAt,
+          fallbackAuthCreationTime:
+            authCreationMs && Number.isFinite(authCreationMs) ? authCreationMs : null,
+        });
+
         const user: User = {
           ...rawUser,
           uid: firebaseUser.uid,
@@ -242,7 +278,8 @@ export class FirebaseSyncService {
             ...(rawUser.laundries || {}),
             [existingLaundryId]: healedBranchName,
           },
-          subscriptionEndDate: isNewcomerProfile ? null : rawUser.subscriptionEndDate,
+          createdAt: resolvedCreatedAt ?? rawUser.createdAt,
+          subscriptionEndDate: resolvedSubEnd,
           displayName: healedDisplayName,
           username: rawUser.username || healedDisplayName,
         };
@@ -282,7 +319,7 @@ export class FirebaseSyncService {
                 alamat: '',
                 nomorTelepon: healedPhone || '',
                 subscriptionType: rawUser.subscriptionType || 'newcomer',
-                subscriptionEndDate: isNewcomerProfile ? null : (rawUser.subscriptionEndDate ?? null),
+                subscriptionEndDate: rawUser.subscriptionEndDate ?? null,
                 updatedAt: Date.now(),
               }).catch(console.warn);
             }
@@ -309,7 +346,7 @@ export class FirebaseSyncService {
         alamat: '',
         nomorTelepon: phone,
         subscriptionType: 'newcomer',
-        subscriptionEndDate: null,
+        subscriptionEndDate: trialEndDate,
       };
 
       const customSettings: SettingsData = {
@@ -534,14 +571,26 @@ export class FirebaseSyncService {
     }
     const authoritativeOwner = ownerDocSnap.data() as any;
     const authoritativeSubType = authoritativeOwner.subscriptionType || 'newcomer';
-    const authoritativeSubEnd =
+    const rawSubEnd =
       typeof authoritativeOwner.subscriptionEndDate === 'number'
         ? authoritativeOwner.subscriptionEndDate
         : null;
+    const authoritativeSubEnd = resolveEffectiveSubscriptionEndDate({
+      subscriptionType: authoritativeSubType,
+      subscriptionEndDate: rawSubEnd,
+      createdAt:
+        typeof authoritativeOwner.createdAt === 'number'
+          ? authoritativeOwner.createdAt
+          : null,
+    });
 
-    if (authoritativeSubType !== 'premium') {
+    const isAllowedSub =
+      authoritativeSubType === 'premium' ||
+      authoritativeSubType === 'pro' ||
+      authoritativeSubType === 'newcomer';
+    if (!isAllowedSub || authoritativeSubEnd === null || authoritativeSubEnd <= Date.now()) {
       throw new Error(
-        'Pembuatan akun kasir memerlukan Paket Premium yang aktif dan terverifikasi di server.'
+        'Masa percobaan 7 hari atau langganan Paket Premium Anda telah berakhir. Silakan perpanjang Paket Premium untuk membuat akun kasir.'
       );
     }
 
@@ -600,7 +649,7 @@ export class FirebaseSyncService {
       laundryId: branchId,
       laundries: { [branchId]: branchName },
       walletBalance: 0,
-      subscriptionType: 'premium',
+      subscriptionType: authoritativeSubType,
       subscriptionEndDate: authoritativeSubEnd,
       createdAt: now,
     };
@@ -632,7 +681,7 @@ export class FirebaseSyncService {
           nomorTelepon: isPhone ? cleanInput : null,
           laundryId: branchId,
           laundries: { [branchId]: branchName },
-          subscriptionType: 'premium',
+          subscriptionType: authoritativeSubType,
           subscriptionEndDate: authoritativeSubEnd,
           updatedAt: now,
         })
