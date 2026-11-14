@@ -2,7 +2,14 @@ import React, { Suspense, lazy, useState, useEffect, useMemo, useRef, useCallbac
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 import { FirebaseSyncService } from './utils/firebaseSync';
-import { StorageService, defaultSettings, defaultOwnerUser, defaultLayananList } from './utils/storage';
+import {
+  StorageService,
+  defaultSettings,
+  defaultOwnerUser,
+  defaultLayananList,
+  buildSeededLayananForBranch,
+  dedupeLayananForBranch,
+} from './utils/storage';
 import { IndexedDbService } from './utils/indexedDb';
 import {
   Transaksi,
@@ -410,6 +417,11 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
 
   const [layananList, setLayananList] = useState<Layanan[]>(() =>
     StorageService.get<Layanan[]>('layanan', [])
+  );
+
+  const activeBranchLayanan = useMemo(
+    () => dedupeLayananForBranch(layananList, activeLaundryId),
+    [layananList, activeLaundryId]
   );
 
   const [pelangganList, setPelangganList] = useState<Pelanggan[]>(() =>
@@ -1267,10 +1279,11 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
           snap.pelangganList.length > 0
             ? snap.pelangganList
             : StorageService.get<Pelanggan[]>('pelanggan', []);
-        const latestStoredLayanan =
-          snap.layananList.length > 0
-            ? snap.layananList
-            : StorageService.get<Layanan[]>('layanan', []);
+        const storedLayananRaw = StorageService.get<Layanan[]>('layanan', []);
+        const latestStoredLayanan = dedupeLayananForBranch(
+          [...storedLayananRaw, ...snap.layananList],
+          targetLaundryId
+        );
         const latestStoredPengeluaran =
           snap.pengeluaranList.length > 0
             ? snap.pengeluaranList
@@ -1370,7 +1383,14 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
           StorageService.set('pelanggan', custs);
         }
         if (lays && lays.length > 0) {
-          StorageService.set('layanan', lays);
+          const prevStoredLayanan = StorageService.get<Layanan[]>('layanan', []);
+          const otherBranchLayanan = prevStoredLayanan.filter(
+            (l) =>
+              l.laundryId &&
+              l.laundryId !== targetLaundryId &&
+              (targetLaundryId === 'lnd-1' || l.laundryId !== 'lnd-1')
+          );
+          StorageService.set('layanan', [...otherBranchLayanan, ...lays]);
         }
         if (exps && exps.length > 0) {
           StorageService.set('pengeluaran', exps);
@@ -1416,9 +1436,16 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
           );
         }
         if (lays && lays.length > 0) {
-          setLayananList((prev) =>
-            JSON.stringify(prev) === JSON.stringify(lays) ? prev : lays
-          );
+          setLayananList((prev) => {
+            const otherBranchLayanan = prev.filter(
+              (l) =>
+                l.laundryId &&
+                l.laundryId !== targetLaundryId &&
+                (targetLaundryId === 'lnd-1' || l.laundryId !== 'lnd-1')
+            );
+            const mergedLayanan = [...otherBranchLayanan, ...lays];
+            return JSON.stringify(prev) === JSON.stringify(mergedLayanan) ? prev : mergedLayanan;
+          });
         }
         if (exps && exps.length > 0) {
           setPengeluaranList((prev) =>
@@ -1544,6 +1571,10 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
       };
       setSettings(syncedSettings);
       StorageService.set('settings', syncedSettings);
+    }
+
+    if (currentUser && auth.currentUser) {
+      loadFirestoreData(currentUser, false).catch(console.warn);
     }
   };
 
@@ -2008,23 +2039,42 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
 
   const handleSaveLayanan = (lay: Layanan) => {
     const limits = getLaundryLimits(activeTier);
-    const exists = layananList.some((l) => l.id === lay.id);
-    if (!exists && layananList.length >= limits.maxServices) {
+    const branchServices = dedupeLayananForBranch(layananList, lay.laundryId);
+    const exists = branchServices.some((l) => l.id === lay.id);
+    if (!exists && branchServices.length >= limits.maxServices) {
       toast.warning(
         `Batas maksimal ${limits.maxServices} jenis layanan telah tercapai. Fitur penambahan layanan lebih banyak hanya untuk Paket Premium.`
       );
       return;
     }
-    const updated = exists
-      ? layananList.map((l) => (l.id === lay.id ? lay : l))
+    const existsInAll = layananList.some(
+      (l) => l.id === lay.id && l.laundryId === lay.laundryId
+    );
+    const updated = existsInAll
+      ? layananList.map((l) =>
+          l.id === lay.id && l.laundryId === lay.laundryId ? lay : l
+        )
       : [...layananList, lay];
     updateLayananList(updated);
     FirebaseSyncService.saveLayanan(lay).catch(console.error);
   };
 
   const handleDeleteLayanan = (id: string) => {
-    updateLayananList(layananList.filter((l) => l.id !== id));
+    updateLayananList(
+      layananList.filter((l) => !(l.id === id && l.laundryId === activeLaundryId))
+    );
     FirebaseSyncService.deleteLayanan(activeLaundryId, id).catch(console.error);
+  };
+
+  const handleReorderLayanan = (reorderedBranchList: Layanan[]) => {
+    const otherBranches = layananList.filter((l) => l.laundryId !== activeLaundryId);
+    updateLayananList([...otherBranches, ...reorderedBranchList]);
+    reorderedBranchList.forEach((lay) => {
+      const prev = activeBranchLayanan.find((item) => item.id === lay.id);
+      if (!prev || prev.urutan !== lay.urutan) {
+        FirebaseSyncService.saveLayanan(lay).catch(console.warn);
+      }
+    });
   };
 
   const handleAddLaundry = async (
@@ -2102,19 +2152,19 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
       FirebaseSyncService.saveSettings(newLnd.id, branchSettings).catch(console.warn);
 
       const sourceLayanan = copyFromId
-        ? layananList.filter((l) => l.laundryId === copyFromId)
+        ? dedupeLayananForBranch(layananList, copyFromId)
         : [];
       const baseTemplates = sourceLayanan.length > 0 ? sourceLayanan : defaultLayananList;
-      const seededBranchLayanan = baseTemplates.map((l, i) => ({
-        ...l,
-        id: `lay-${Date.now()}-${i}`,
-        laundryId: newLnd.id,
-      }));
-      updateLayananList([...layananList, ...seededBranchLayanan]);
+      const seededBranchLayanan = buildSeededLayananForBranch(newLnd.id, baseTemplates);
+      const otherBranchesLayanan = layananList.filter(
+        (l) => l.laundryId && l.laundryId !== newLnd.id && l.laundryId !== 'lnd-1'
+      );
+      updateLayananList([...otherBranchesLayanan, ...seededBranchLayanan]);
       seededBranchLayanan.forEach((lay) => {
         FirebaseSyncService.saveLayanan(lay).catch(console.warn);
       });
 
+      StorageService.set('current_laundry_id', newLnd.id);
       setActiveLaundryId(newLnd.id);
       toast.success(
         result.isExtraBranch
@@ -2569,7 +2619,7 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
               laundries={laundries}
               transaksiList={transaksiList}
               pelangganCount={pelangganList.filter((p) => p.laundryId === activeLaundryId).length || pelangganList.length}
-              layananCount={layananList.filter((l) => l.laundryId === activeLaundryId).length || layananList.length}
+              layananCount={activeBranchLayanan.length}
               currentTier={activeTier}
               onOpenUpgradeModal={handleOpenUpgradeModal}
               onOpenExpiredModal={() => setIsExpiredModalOpen(true)}
@@ -2631,6 +2681,7 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
                 setActiveTier(resolvedTier);
                 StorageService.set('active_subscription_tier', resolvedTier);
                 StorageService.set('active_user', user);
+                setLayananList(StorageService.get<Layanan[]>('layanan', []));
                 await loadFirestoreData(user, true);
                 setActiveView('dashboard');
               }}
@@ -2757,7 +2808,7 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
           ) : (
             <TambahEditView
               onBack={navigateBack}
-              layananList={layananList}
+              layananList={activeBranchLayanan}
               pelangganList={pelangganList}
               settings={settings}
               currentUser={currentUser}
@@ -2817,7 +2868,7 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
             transaksiList={transaksiList}
             isLoadingTransaksi={isHydratingTransaksi}
             pelangganList={pelangganList}
-            semuaLayanan={layananList}
+            semuaLayanan={activeBranchLayanan}
             staffList={staffList}
             operationalStaffList={operationalStaffList}
             currentUser={currentUser}
@@ -2967,13 +3018,13 @@ export default function App({ initialBootData }: { initialBootData?: InitialBoot
           ) : (
             <KelolaLayananView
               onBack={navigateBack}
-              layananList={layananList}
+              layananList={activeBranchLayanan}
               activeLaundryId={activeLaundryId}
               settings={settings}
               currentTier={activeTier}
               onSaveLayanan={handleSaveLayanan}
               onDeleteLayanan={handleDeleteLayanan}
-              onReorderLayanan={updateLayananList}
+              onReorderLayanan={handleReorderLayanan}
               onOpenUpgradeModal={handleOpenUpgradeModal}
             />
           )

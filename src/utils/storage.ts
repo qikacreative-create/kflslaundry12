@@ -39,15 +39,76 @@ export const defaultSettings: SettingsData = {
   hitungKerjaStaf: true,
 };
 
-// Default Services matching SignUpActivity.kt
+// Default Services (28 layanan standar lengkap untuk pendaftaran akun baru & cabang baru)
 export const defaultLayananList: Layanan[] = [
-  { id: 'lay-1', laundryId: 'lnd-1', nama: 'Cuci Setrika', harga: 7000, satuanHarga: 'Kg', durasi: '3 Hari', hitungBebanKerja: true, urutan: 0 },
-  { id: 'lay-2', laundryId: 'lnd-1', nama: 'Cuci Kering Saja', harga: 5000, satuanHarga: 'Kg', durasi: '2 Hari', hitungBebanKerja: true, urutan: 1 },
-  { id: 'lay-3', laundryId: 'lnd-1', nama: 'Setrika Saja', harga: 4000, satuanHarga: 'Kg', durasi: '1 Hari', hitungBebanKerja: true, urutan: 2 },
-  { id: 'lay-4', laundryId: 'lnd-1', nama: 'Cuci Express (1 Hari)', harga: 10000, satuanHarga: 'Kg', durasi: '1 Hari', hitungBebanKerja: true, urutan: 3 },
-  { id: 'lay-5', laundryId: 'lnd-1', nama: 'Cuci Karpet', harga: 15000, satuanHarga: 'Meter', durasi: '3 Hari', hitungBebanKerja: true, urutan: 4 },
-  { id: 'lay-6', laundryId: 'lnd-1', nama: 'Cuci Bedcover', harga: 20000, satuanHarga: 'pcs', durasi: '3 Hari', hitungBebanKerja: true, urutan: 5 },
+  { id: 'lay-1', laundryId: 'lnd-1', nama: 'Cuci Setrika', harga: 7500, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 0 },
+  { id: 'lay-2', laundryId: 'lnd-1', nama: 'Cuci Setrika Express 24 Jam', harga: 10000, satuanHarga: 'Kg', durasi: '24 Jam', satuanDurasi: 'Jam', hitungBebanKerja: true, urutan: 1 },
+  { id: 'lay-3', laundryId: 'lnd-1', nama: 'Cuci Setrika Express 8 jam', harga: 20000, satuanHarga: 'Kg', durasi: '8 Jam', satuanDurasi: 'Jam', hitungBebanKerja: true, urutan: 2 },
+  { id: 'lay-4', laundryId: 'lnd-1', nama: 'Setrika', harga: 6000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 3 },
+  { id: 'lay-5', laundryId: 'lnd-1', nama: 'Setrika Express 24 jam', harga: 8000, satuanHarga: 'Kg', durasi: '24 jam', satuanDurasi: 'Jam', hitungBebanKerja: true, urutan: 4 },
+  { id: 'lay-6', laundryId: 'lnd-1', nama: 'Setrika Express 8 jam', harga: 11000, satuanHarga: 'Kg', durasi: '8 Jam', satuanDurasi: 'Jam', hitungBebanKerja: true, urutan: 5 },
+  { id: 'lay-7', laundryId: 'lnd-1', nama: 'Cuci Lipat', harga: 6000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 6 },
+  { id: 'lay-8', laundryId: 'lnd-1', nama: 'Bed Cover Jumbo', harga: 15000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 7 },
+  { id: 'lay-9', laundryId: 'lnd-1', nama: 'Bed Cover Sedang', harga: 13000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 8 },
+  { id: 'lay-10', laundryId: 'lnd-1', nama: 'Selimut Tebal', harga: 13000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 9 },
+  { id: 'lay-11', laundryId: 'lnd-1', nama: 'Selimut Sedang', harga: 11000, satuanHarga: 'Kg', durasi: '5 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 10 },
+  { id: 'lay-12', laundryId: 'lnd-1', nama: 'Selimut Tipis', harga: 10000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 11 },
+  { id: 'lay-13', laundryId: 'lnd-1', nama: 'Karpet Jumbo', harga: 17000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 12 },
+  { id: 'lay-14', laundryId: 'lnd-1', nama: 'Karpet Tebal', harga: 15000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 13 },
+  { id: 'lay-15', laundryId: 'lnd-1', nama: 'Karpet Tipis', harga: 13000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 14 },
+  { id: 'lay-16', laundryId: 'lnd-1', nama: 'Karpet Busa', harga: 16000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 15 },
+  { id: 'lay-17', laundryId: 'lnd-1', nama: 'Karpet Masjid', harga: 17000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 16 },
+  { id: 'lay-18', laundryId: 'lnd-1', nama: 'Hordeng Tebal', harga: 16000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 17 },
+  { id: 'lay-19', laundryId: 'lnd-1', nama: 'Hordeng Tipis', harga: 13000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 18 },
+  { id: 'lay-20', laundryId: 'lnd-1', nama: 'Jas', harga: 17000, satuanHarga: 'pcs', durasi: '4 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 19 },
+  { id: 'lay-21', laundryId: 'lnd-1', nama: 'Gaun', harga: 25000, satuanHarga: 'pcs', durasi: '4 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 20 },
+  { id: 'lay-22', laundryId: 'lnd-1', nama: 'Kebaya', harga: 20000, satuanHarga: 'pcs', durasi: '4 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 21 },
+  { id: 'lay-23', laundryId: 'lnd-1', nama: 'Boneka Jumbo', harga: 45000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 22 },
+  { id: 'lay-24', laundryId: 'lnd-1', nama: 'Boneka Besar', harga: 35000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 23 },
+  { id: 'lay-25', laundryId: 'lnd-1', nama: 'Boneka Sedang', harga: 25000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 24 },
+  { id: 'lay-26', laundryId: 'lnd-1', nama: 'Boneka Kecil', harga: 10000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 25 },
+  { id: 'lay-27', laundryId: 'lnd-1', nama: 'Tas', harga: 20000, satuanHarga: 'pcs', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 26 },
+  { id: 'lay-28', laundryId: 'lnd-1', nama: 'Sepatu', harga: 15000, satuanHarga: 'pcs', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true, urutan: 27 },
 ];
+
+export function dedupeLayananForBranch(
+  list: readonly Layanan[],
+  targetLaundryId?: string
+): Layanan[] {
+  const byId = new Map<string, Layanan>();
+  const seenNames = new Set<string>();
+
+  for (const item of list) {
+    if (!item || !item.id || !item.nama) continue;
+    if (targetLaundryId) {
+      if (item.laundryId !== targetLaundryId) continue;
+      if (targetLaundryId !== 'lnd-1' && item.laundryId === 'lnd-1') continue;
+    }
+    if (byId.has(item.id)) continue;
+    const normName = item.nama.trim().toLowerCase();
+    if (seenNames.has(normName)) continue;
+    seenNames.add(normName);
+    byId.set(item.id, item);
+  }
+
+  return Array.from(byId.values()).sort(
+    (a, b) => (a.urutan ?? 999) - (b.urutan ?? 999)
+  );
+}
+
+export function buildSeededLayananForBranch(
+  laundryId: string,
+  templates: readonly Layanan[] = defaultLayananList
+): Layanan[] {
+  const source = templates.length > 0 ? templates : defaultLayananList;
+  const deduped = dedupeLayananForBranch(source);
+  return deduped.map((lay, idx) => ({
+    ...lay,
+    id: `lay-${idx + 1}`,
+    laundryId,
+    urutan: typeof lay.urutan === 'number' ? lay.urutan : idx,
+  }));
+}
 
 // Master Jenis Pengeluaran
 export const defaultJenisPengeluaran: JenisPengeluaran[] = [

@@ -31,7 +31,12 @@ import {
   Pengeluaran,
   SettingsData,
 } from '../types';
-import { defaultLayananList, defaultSettings, StorageService } from './storage';
+import {
+  buildSeededLayananForBranch,
+  dedupeLayananForBranch,
+  defaultSettings,
+  StorageService,
+} from './storage';
 import { IndexedDbService } from './indexedDb';
 import { formatNomorWA } from './formatters';
 import {
@@ -360,10 +365,7 @@ export class FirebaseSyncService {
         logoSize: 'sedang',
       };
 
-      const seededLayanan: Layanan[] = defaultLayananList.map((lay) => ({
-        ...lay,
-        laundryId: defaultLaundryId,
-      }));
+      const seededLayanan: Layanan[] = buildSeededLayananForBranch(defaultLaundryId);
 
       StorageService.set('transaksi', []);
       StorageService.set('pelanggan', []);
@@ -1397,27 +1399,31 @@ export class FirebaseSyncService {
     }
   }
 
-  // 9. FETCH LAYANAN LANGSUNG DARI SERVER (Multi-user sync & smart merge)
+  // 9. FETCH LAYANAN LANGSUNG DARI SERVER (Multi-user sync & branch-scoped dedupe)
   static async fetchLayanan(laundryId: string, cached: Layanan[] = []): Promise<Layanan[]> {
+    const branchCached = dedupeLayananForBranch(cached, laundryId);
     if (!auth.currentUser) {
-      return cached;
+      return branchCached;
     }
     const path = `laundries/${laundryId}/layanan`;
     try {
       const snap = await getDocs(collection(db, path));
       if (snap.empty) {
-        return cached.length > 0 ? cached : defaultLayananList;
+        return branchCached.length > 0 ? branchCached : buildSeededLayananForBranch(laundryId);
       }
-      const map = new Map<string, Layanan>();
-      cached.forEach((l) => map.set(l.id, l));
+      const serverItems: Layanan[] = [];
       snap.forEach((d) => {
-        const item = d.data() as Layanan;
-        map.set(item.id, item);
+        const raw = d.data() as Layanan;
+        serverItems.push({
+          ...raw,
+          id: raw.id || d.id,
+          laundryId: raw.laundryId || laundryId,
+        });
       });
-      return Array.from(map.values()).sort((a, b) => (a.urutan ?? 999) - (b.urutan ?? 999));
+      return dedupeLayananForBranch([...serverItems, ...branchCached], laundryId);
     } catch (e) {
       console.warn('Gagal fetch layanan:', e);
-      return cached;
+      return branchCached;
     }
   }
 

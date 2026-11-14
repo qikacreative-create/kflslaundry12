@@ -20,6 +20,7 @@ import { Layanan, SettingsData } from '../types';
 import { formatRupiah, formatRibuanInput, bersihkanTitik } from '../utils/formatters';
 import { useToast, useConfirm } from '../components/NotificationContext';
 import { isProTier, getLaundryLimits, UNLIMITED_QUOTA } from '../utils/subscription';
+import { defaultLayananList } from '../utils/storage';
 import { SwipeableItem } from '../components/SwipeableItem';
 
 interface KelolaLayananViewProps {
@@ -33,38 +34,6 @@ interface KelolaLayananViewProps {
   onReorderLayanan: (reorderedList: Layanan[]) => void;
   onOpenUpgradeModal?: (reason?: string) => void;
 }
-
-// Preset standard services that owners frequently use
-const PRESET_STANDAR_LAUNDRY: Omit<Layanan, 'id' | 'laundryId' | 'urutan'>[] = [
-  { nama: 'Cuci Setrika', harga: 7500, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Cuci Setrika Express 24 Jam', harga: 10000, satuanHarga: 'Kg', durasi: '24 Jam', satuanDurasi: 'Jam', hitungBebanKerja: true },
-  { nama: 'Cuci Setrika Express 8 jam', harga: 20000, satuanHarga: 'Kg', durasi: '8 Jam', satuanDurasi: 'Jam', hitungBebanKerja: true },
-  { nama: 'Setrika', harga: 6000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Setrika Express 24 jam', harga: 8000, satuanHarga: 'Kg', durasi: '24 jam', satuanDurasi: 'Jam', hitungBebanKerja: true },
-  { nama: 'Setrika Express 8 jam', harga: 11000, satuanHarga: 'Kg', durasi: '8 Jam', satuanDurasi: 'Jam', hitungBebanKerja: true },
-  { nama: 'Cuci Lipat', harga: 6000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Bed Cover Jumbo', harga: 15000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Bed Cover Sedang', harga: 13000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Selimut Tebal', harga: 13000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Selimut Sedang', harga: 11000, satuanHarga: 'Kg', durasi: '5 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Selimut Tipis', harga: 10000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Karpet Jumbo', harga: 17000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Karpet Tebal', harga: 15000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Karpet Tipis', harga: 13000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Karpet Busa', harga: 16000, satuanHarga: 'Kg', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Karpet Masjid', harga: 17000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Hordeng Tebal', harga: 16000, satuanHarga: 'Kg', durasi: '14 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Hordeng Tipis', harga: 13000, satuanHarga: 'Kg', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Jas', harga: 17000, satuanHarga: 'pcs', durasi: '4 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Gaun', harga: 25000, satuanHarga: 'pcs', durasi: '4 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Kebaya', harga: 20000, satuanHarga: 'pcs', durasi: '4 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Boneka Jumbo', harga: 45000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Boneka Besar', harga: 35000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Boneka Sedang', harga: 25000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Boneka Kecil', harga: 10000, satuanHarga: 'pcs', durasi: '7 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Tas', harga: 20000, satuanHarga: 'pcs', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-  { nama: 'Sepatu', harga: 15000, satuanHarga: 'pcs', durasi: '3 Hari', satuanDurasi: 'Hari', hitungBebanKerja: true },
-];
 
 export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
   onBack,
@@ -141,7 +110,7 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
     setIsModalOpen(true);
   };
 
-  const applyPreset = (preset: typeof PRESET_STANDAR_LAUNDRY[0]) => {
+  const applyPreset = (preset: Layanan) => {
     setNama(preset.nama);
     setHargaStr(formatRibuanInput(preset.harga));
     setSatuanHarga(preset.satuanHarga);
@@ -153,12 +122,22 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
 
   const handleSave = () => {
     const numericHarga = bersihkanTitik(hargaStr);
-    if (!nama.trim()) {
+    const cleanNama = nama.trim();
+    if (!cleanNama) {
       toast.warning('Nama layanan wajib diisi.');
       return;
     }
     if (numericHarga <= 0) {
       toast.warning('Harga harus lebih dari Rp 0.');
+      return;
+    }
+    const isDuplicateName = layananList.some(
+      (l) =>
+        l.id !== editingLayanan?.id &&
+        l.nama.trim().toLowerCase() === cleanNama.toLowerCase()
+    );
+    if (isDuplicateName) {
+      toast.warning(`Layanan "${cleanNama}" sudah terdaftar pada cabang ini.`);
       return;
     }
 
@@ -284,32 +263,6 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
     }
   };
 
-  const handleResetToStandard = async () => {
-    if (layananList.length + PRESET_STANDAR_LAUNDRY.length > limits.maxServices) {
-      toast.warning(`${limits.label} dibatasi maksimal ${limits.maxServices} jenis layanan.`);
-      onOpenUpgradeModal?.(`${limits.label} dibatasi maksimal ${limits.maxServices} jenis layanan. Tingkatkan paket untuk mengimpor seluruh paket standar.`);
-      return;
-    }
-
-    const ok = await confirm({
-      title: 'Tambah Paket Standar',
-      message: 'Tambahkan 9 paket layanan standar laundry lengkap (Cuci Setrika, Bedcover, Sepatu, dll.)?',
-      confirmText: 'Ya, Tambahkan',
-    });
-    if (ok) {
-      PRESET_STANDAR_LAUNDRY.forEach((preset, idx) => {
-        const item: Layanan = {
-          ...preset,
-          id: `lay-${Date.now()}-${idx}`,
-          laundryId: activeLaundryId,
-          urutan: layananList.length + idx,
-        };
-        onSaveLayanan(item);
-      });
-      toast.success('Paket layanan standar berhasil ditambahkan!');
-    }
-  };
-
   // Quick nominal adjustment buttons
   const addNominal = (amt: number) => {
     const currentVal = bersihkanTitik(hargaStr);
@@ -382,20 +335,11 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
     )}
   </div>
 
-  {/* 2. Informasi Jumlah Layanan & Tombol Paket Standar (Di sebelah kanan) */}
-  <div className="flex items-center gap-3 shrink-0 text-xs">
+  {/* 2. Informasi Jumlah Layanan (Di sebelah kanan) */}
+  <div className="flex items-center gap-3 shrink-0 text-xs pr-2">
     <span className="font-medium text-[11px] text-slate-500 hidden sm:inline">
       Menampilkan <strong className="text-slate-800">{filteredList.length}</strong> dari {layananList.length}
     </span>
-
-    <button
-      type="button"
-      onClick={handleResetToStandard}
-      className="flex items-center gap-1 text-[11px] font-bold text-[#800000] hover:text-[#660000] bg-rose-50/80 border border-rose-100 hover:bg-rose-100 px-3 py-2 rounded-xl transition cursor-pointer shrink-0"
-    >
-      <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-      <span>+ Paket Standar</span>
-    </button>
   </div>
 
 </div>
@@ -424,7 +368,7 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
                 <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
                   {searchQuery
                     ? `Tidak ada layanan yang cocok dengan "${searchQuery}". Coba kata kunci lain.`
-                    : 'Tambahkan paket layanan laundry baru atau muat paket standar lengkap.'}
+                    : 'Tambahkan paket layanan laundry baru sesuai tarif outlet Anda.'}
                 </p>
               </div>
               <div className="pt-1 flex flex-wrap gap-2 justify-center">
@@ -433,13 +377,6 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
                   className="px-4 py-2 bg-[#800000] hover:bg-[#660000] text-white text-xs font-bold rounded-xl shadow-xs transition"
                 >
                   + Tambah Layanan Baru
-                </button>
-                <button
-                  onClick={handleResetToStandard}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Muat Preset Standar</span>
                 </button>
               </div>
             </div>
@@ -559,9 +496,9 @@ export const KelolaLayananView: React.FC<KelolaLayananViewProps> = ({
                     <span>Pilihan Cepat Standar Laundry:</span>
                   </label>
                   <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-slate-50 rounded-2xl border border-slate-200">
-                    {PRESET_STANDAR_LAUNDRY.map((p, pIdx) => (
+                    {defaultLayananList.map((p) => (
                       <button
-                        key={pIdx}
+                        key={p.id}
                         type="button"
                         onClick={() => applyPreset(p)}
                         className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-[#800000] hover:text-[#800000] text-[11px] font-semibold text-slate-700 transition shadow-2xs"
