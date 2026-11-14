@@ -15,6 +15,7 @@ import {
 import { toPng } from 'html-to-image';
 import { Transaksi, SettingsData, Pelanggan } from '../types';
 import { formatRupiah, formatDateIndo } from '../utils/formatters';
+import { generateReceiptBlob } from '../utils/receiptCanvas';
 
 interface ShareReceiptModalProps {
   isOpen: boolean;
@@ -191,30 +192,44 @@ export const ShareReceiptModal: React.FC<ShareReceiptModalProps> = ({
     dataUrl: string;
     fileName: string;
   } | null> => {
-    // 1. Ambil langsung elemen struk yang sedang tampil di layar
+    const safeName = (transaksi.namaPelanggan || 'Pelanggan').replace(/[^a-zA-Z0-9]/g, '_');
+    const safeInv = (transaksi.nomorTransaksi || '001').replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `Struk_${safeName}_${safeInv}.png`;
+
+    // 1. Ambil langsung elemen struk yang sedang tampil di layar jika ada
     const node =
       document.getElementById('printable-receipt-area') ||
       document.getElementById('printable-receipt');
 
-    if (!node) {
-      showStatus('Elemen struk tidak ditemukan di layar. Pastikan preview struk terbuka.', 'error');
-      return null;
-    }
-
     try {
-      // 2. Render langsung apa adanya tanpa timeout, tanpa tunggu isLogoReady
-      const dataUrl = await toPng(node as HTMLElement, {
-        pixelRatio: 2,
-        cacheBust: true,
-        skipFonts: true,
-        style: { transform: 'none' },
-      });
+      let blob: Blob;
+      let dataUrl: string;
 
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const safeName = (transaksi.namaPelanggan || 'Pelanggan').replace(/[^a-zA-Z0-9]/g, '_');
-      const safeInv = (transaksi.nomorTransaksi || '001').replace(/[^a-zA-Z0-9]/g, '_');
-      const fileName = `Struk_${safeName}_${safeInv}.png`;
+      if (node) {
+        dataUrl = await toPng(node as HTMLElement, {
+          pixelRatio: 2,
+          cacheBust: true,
+          skipFonts: true,
+          style: { transform: 'none' },
+        });
+        const res = await fetch(dataUrl);
+        blob = await res.blob();
+      } else {
+        blob = await generateReceiptBlob(
+          transaksi,
+          settings,
+          laundryName,
+          laundryAddress,
+          laundryPhone
+        );
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('Gagal membaca gambar struk'));
+          reader.readAsDataURL(blob);
+        });
+      }
+
       const file = new File([blob], fileName, { type: 'image/png' });
 
       // Salin ke clipboard perangkat jika didukung

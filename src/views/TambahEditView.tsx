@@ -377,7 +377,7 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
-                className={`w-full px-2.5 py-1 rounded-xl border text-left transition flex items-center justify-between gap-1 cursor-pointer h-[42px] ${
+                className={`w-full px-1 py-1 rounded-xl border text-left transition flex items-center justify-between gap-1 cursor-pointer h-[42px] ${
                   isDropdownOpen
                     ? 'border-[#800000] ring-2 ring-[#800000]/20 bg-rose-50/20'
                     : 'border-slate-300 bg-white hover:border-slate-400'
@@ -399,7 +399,7 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute left-0 right-0 top-full z-40 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                   <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-1.5">
                     <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <input
@@ -427,7 +427,7 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
                             key={lay.id}
                             type="button"
                             onClick={() => handleSelectLayanan(lay)}
-                            className={`w-full text-left p-1.5 rounded-lg transition flex items-center justify-between gap-2 cursor-pointer ${
+                            className={`w-full text-left p-1 rounded-lg transition flex items-center justify-between gap-1 cursor-pointer ${
                               isSelected ? 'bg-rose-50 text-[#800000] font-bold' : 'hover:bg-slate-50 text-slate-800'
                             }`}
                           >
@@ -435,7 +435,7 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
                               <div className="text-xs font-bold truncate leading-snug">
                                 {lay.nama}
                               </div>
-                              <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500">
+                              <div className="flex items-center gap-1.5  text-[10px] text-slate-500">
                                 <span>{lay.durasi || 'Standar'}</span>
                                 <span>•</span>
                                 <span className="font-extrabold text-[#800000] ml-auto">
@@ -453,7 +453,7 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
             </div>
 
             {/* Input Berat / Jumlah */}
-            <div className="flex-[0.4] min-w-0">
+            <div className="flex-[0.32] min-w-0">
               <div className="relative">
                 <input
                   ref={quantityInputRef}
@@ -472,7 +472,7 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
                     }
                   }}
                   placeholder="0"
-                  className="w-full px-2 py-2.5 pr-8 rounded-xl border border-slate-300 text-xs font-black text-slate-900 bg-white focus:ring-2 focus:ring-[#800000] focus:outline-none h-[42px]"
+                  className="w-full px-2 py-2.5 pr-1 rounded-xl border border-slate-300 text-xs font-black text-slate-900 bg-white focus:ring-2 focus:ring-[#800000] focus:outline-none h-[42px]"
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">
                   {currentLayanan?.satuanHarga || 'Kg'}
@@ -549,8 +549,8 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
               </div>
             )}
 
-            {/* Input / Status Diskon Manual */}
-            <div className="flex items-center justify-between gap-2 pt-0.5">
+          {/* 
+          <div className="flex items-center justify-between gap-2 pt-0.5">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                 <Tag className="w-3.5 h-3.5 text-[#800000]" />
                 <span>Diskon Nota:</span>
@@ -582,7 +582,7 @@ export const TambahEditView: React.FC<TambahEditViewProps> = ({
                   title={isOwner ? "Masukkan nominal diskon (Rp)" : "Diskon manual dikunci khusus akun Owner"}
                 />
               </div>
-            </div>
+          </div>Input / Status Diskon Manual */}
 
             {/* Total Tagihan Akhir */}
             <div className="flex items-baseline justify-between pt-1 border-t border-dashed border-slate-200">

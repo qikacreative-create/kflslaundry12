@@ -202,9 +202,9 @@ export async function generateReceiptCanvas(
 
   let logoImg: HTMLImageElement | null = null;
   const maxLogoH =
-    settings.logoSize === 'kecil' ? 28 : settings.logoSize === 'besar' ? 52 : 36;
+    settings.logoSize === 'kecil' ? 32 : settings.logoSize === 'besar' ? 48 : 40;
   const maxLogoW =
-    settings.logoSize === 'kecil' ? 70 : settings.logoSize === 'besar' ? 130 : 95;
+    settings.logoSize === 'kecil' ? 56 : settings.logoSize === 'besar' ? 84 : 70;
 
   if (settings.useLogo && settings.logoPath) {
     try {
@@ -227,21 +227,40 @@ export async function generateReceiptCanvas(
   const tempCtx = tempCanvas.getContext('2d')!;
   let estimatedHeight = padding * 2 + 12;
 
+  let logoRenderW = 0;
+  let logoRenderH = 0;
   if (logoImg) {
     const scale = Math.min(
       1,
       maxLogoH / (logoImg.naturalHeight || logoImg.height || 1),
       maxLogoW / (logoImg.naturalWidth || logoImg.width || 1)
     );
-    estimatedHeight += (logoImg.naturalHeight || logoImg.height) * scale + 10;
+    logoRenderW = (logoImg.naturalWidth || logoImg.width) * scale;
+    logoRenderH = (logoImg.naturalHeight || logoImg.height) * scale;
   }
 
-  tempCtx.font = 'bold 14px "Courier New", Courier, monospace';
-  estimatedHeight += wrapCanvasText(tempCtx, headerTitle.toUpperCase(), contentWidth).length * 17;
-  tempCtx.font = '10px "Courier New", Courier, monospace';
-  if (headerPhone) estimatedHeight += 14;
-  tempCtx.font = '9px "Courier New", Courier, monospace';
-  if (headerAddress) estimatedHeight += wrapCanvasText(tempCtx, headerAddress, contentWidth).length * 13;
+  const headerGap = logoImg ? 10 : 0;
+  const headerTextWidth = logoImg ? Math.max(120, contentWidth - logoRenderW - headerGap) : contentWidth;
+
+  tempCtx.font = logoImg
+    ? 'bold 13px "Courier New", Courier, monospace'
+    : 'bold 14px "Courier New", Courier, monospace';
+  const titleLines = wrapCanvasText(tempCtx, headerTitle.toUpperCase(), headerTextWidth);
+  tempCtx.font = 'bold 10px "Courier New", Courier, monospace';
+  const addressLines = headerAddress ? wrapCanvasText(tempCtx, headerAddress, headerTextWidth) : [];
+  const phoneLines = headerPhone ? wrapCanvasText(tempCtx, headerPhone, headerTextWidth) : [];
+
+  const titleLineHeight = 16;
+  const metaLineHeight = 13;
+  const headerTextHeight =
+    titleLines.length * titleLineHeight +
+    addressLines.length * metaLineHeight +
+    phoneLines.length * metaLineHeight;
+  const headerBlockHeight = logoImg
+    ? Math.max(logoRenderH, headerTextHeight)
+    : headerTextHeight;
+
+  estimatedHeight += headerBlockHeight + 8;
 
   estimatedHeight += 18;
   estimatedHeight += 14 * (transaksi.tanggalSelesai ? 4 : 3) + 6;
@@ -310,39 +329,66 @@ export async function generateReceiptCanvas(
   let y = padding + 10;
 
   if (logoImg) {
-    const scale = Math.min(
-      1,
-      maxLogoH / (logoImg.naturalHeight || logoImg.height || 1),
-      maxLogoW / (logoImg.naturalWidth || logoImg.width || 1)
-    );
-    const renderW = (logoImg.naturalWidth || logoImg.width) * scale;
-    const renderH = (logoImg.naturalHeight || logoImg.height) * scale;
-    const logoX = (width - renderW) / 2;
-    ctx.drawImage(logoImg, logoX, y - 6, renderW, renderH);
-    y += renderH + 8;
-  }
+    const logoX = padding;
+    const logoY = y - 6 + Math.max(0, (headerBlockHeight - logoRenderH) / 2);
+    ctx.drawImage(logoImg, logoX, logoY, logoRenderW, logoRenderH);
 
-  ctx.fillStyle = '#0F172A';
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 14px "Courier New", Courier, monospace';
-  for (const line of wrapCanvasText(ctx, headerTitle.toUpperCase(), contentWidth)) {
-    ctx.fillText(line, width / 2, y);
-    y += 17;
-  }
+    const textX = padding + logoRenderW + headerGap;
+    let textY = y + Math.max(0, (headerBlockHeight - headerTextHeight) / 2);
+    ctx.textAlign = 'left';
 
-  if (headerPhone) {
-    ctx.font = '10px "Courier New", Courier, monospace';
-    ctx.fillStyle = '#0F172A';
-    ctx.fillText(headerPhone, width / 2, y);
-    y += 14;
-  }
+    ctx.fillStyle = '#020617';
+    ctx.font = 'bold 13px "Courier New", Courier, monospace';
+    for (const line of titleLines) {
+      ctx.fillText(line, textX, textY);
+      textY += titleLineHeight;
+    }
 
-  if (headerAddress) {
-    ctx.font = '9px "Courier New", Courier, monospace';
-    ctx.fillStyle = '#334155';
-    for (const line of wrapCanvasText(ctx, headerAddress, contentWidth)) {
+    if (addressLines.length > 0) {
+      ctx.font = 'bold 10px "Courier New", Courier, monospace';
+      ctx.fillStyle = '#1E293B';
+      for (const line of addressLines) {
+        ctx.fillText(line, textX, textY);
+        textY += metaLineHeight;
+      }
+    }
+
+    if (phoneLines.length > 0) {
+      ctx.font = 'bold 10px "Courier New", Courier, monospace';
+      ctx.fillStyle = '#0F172A';
+      for (const line of phoneLines) {
+        ctx.fillText(line, textX, textY);
+        textY += metaLineHeight;
+      }
+    }
+
+    y += headerBlockHeight;
+  } else {
+    ctx.textAlign = 'center';
+
+    ctx.fillStyle = '#020617';
+    ctx.font = 'bold 14px "Courier New", Courier, monospace';
+    for (const line of titleLines) {
       ctx.fillText(line, width / 2, y);
-      y += 13;
+      y += titleLineHeight;
+    }
+
+    if (addressLines.length > 0) {
+      ctx.font = 'bold 10px "Courier New", Courier, monospace';
+      ctx.fillStyle = '#1E293B';
+      for (const line of addressLines) {
+        ctx.fillText(line, width / 2, y);
+        y += metaLineHeight;
+      }
+    }
+
+    if (phoneLines.length > 0) {
+      ctx.font = 'bold 10px "Courier New", Courier, monospace';
+      ctx.fillStyle = '#0F172A';
+      for (const line of phoneLines) {
+        ctx.fillText(line, width / 2, y);
+        y += metaLineHeight;
+      }
     }
   }
 

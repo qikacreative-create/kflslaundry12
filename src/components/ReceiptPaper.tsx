@@ -111,6 +111,14 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
     const sisaPelunasan = isLunas ? 0 : Math.max(0, totalTagihan - dpDibayar);
     const nominalDibayar = isLunas ? totalTagihan : dpDibayar;
 
+    const showLogo = Boolean(hasLogoEnabled && thermalLogoSrc);
+    const logoSizeClass =
+      settings.logoSize === 'kecil'
+        ? 'h-8 w-auto max-w-[56px]'
+        : settings.logoSize === 'besar'
+        ? 'h-12 w-auto max-w-[84px]'
+        : 'h-10 w-auto max-w-[70px]';
+
     const items = Array.isArray(transaksi.items) && transaksi.items.length > 0 ? transaksi.items : [];
 
     return (
@@ -137,9 +145,9 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
 
         {/* B. KONTEN STRUK */}
         <div className="relative z-10 space-y-1.5">
-          {/* Header Toko (Rapat tanpa jarak atas berlebih) */}
-          <div className="flex items-center gap-2.5">
-            {hasLogoEnabled && thermalLogoSrc && (
+          {/* Header Toko: logo di samping jika aktif, atau rata tengah jika tanpa logo */}
+          {showLogo ? (
+            <div className="flex items-center gap-3 text-left py-0.5">
               <img
                 ref={logoImgRef}
                 src={thermalLogoSrc}
@@ -147,15 +155,41 @@ export const ReceiptPaper = React.forwardRef<HTMLDivElement, ReceiptPaperProps>(
                 referrerPolicy="no-referrer"
                 onLoad={() => requestAnimationFrame(() => onLogoReady?.())}
                 onError={() => requestAnimationFrame(() => onLogoReady?.())}
-                className="h-9 w-auto max-w-[75px] object-contain shrink-0 my-0"
+                className={`${logoSizeClass} object-contain shrink-0 my-0`}
               />
-            )}
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xs font-black uppercase text-slate-950 truncate leading-snug">{namaBrand}</h2>
-              {teleponBrand && <p className="text-[9px] text-slate-600 truncate">{teleponBrand}</p>}
-              {alamatBrand && <p className="text-[9px] text-slate-600 line-clamp-2">{alamatBrand}</p>}
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <h2 className="text-[13px] font-black uppercase text-slate-950 leading-tight break-words">
+                  {namaBrand}
+                </h2>
+                {alamatBrand && (
+                  <p className="text-[10px] font-semibold text-slate-800 leading-snug break-words">
+                    {alamatBrand}
+                  </p>
+                )}
+                {teleponBrand && (
+                  <p className="text-[10px] font-bold text-slate-900 leading-snug break-words">
+                    {teleponBrand}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center text-center space-y-0.5 py-0.5">
+              <h2 className="text-[14px] font-black uppercase text-slate-950 leading-tight break-words w-full">
+                {namaBrand}
+              </h2>
+              {alamatBrand && (
+                <p className="text-[10px] font-semibold text-slate-800 leading-snug break-words w-full">
+                  {alamatBrand}
+                </p>
+              )}
+              {teleponBrand && (
+                <p className="text-[10px] font-bold text-slate-900 leading-snug break-words w-full">
+                  {teleponBrand}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="border-b border-dashed border-slate-700 my-2" />
 

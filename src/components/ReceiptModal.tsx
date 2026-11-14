@@ -386,31 +386,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               </button>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={isGeneratingImg}
-                onClick={handleQuickShareWhatsApp}
-                className="flex-1 min-h-[40px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white font-bold text-xs shadow-xs transition cursor-pointer active:scale-95 whitespace-nowrap"
-                title="Bagikan gambar struk ke aplikasi apa saja (Web Share API)"
-              >
-                <Share2 className="w-4 h-4 shrink-0" />
-                <span>Bagikan Gambar</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  toast.info('Membuka dialog cetak browser (A4/Sistem)...', 2500);
-                  window.print();
-                }}
-                className="px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer active:scale-95 whitespace-nowrap flex items-center gap-1.5"
-                title="Cetak lewat dialog cetak browser (Printer biasa / Simpan PDF)"
-              >
-                <Printer className="w-3.5 h-3.5 text-slate-500" />
-                <span>Cetak Browser</span>
-              </button>
-            </div>
+      
           </div>
         </div>
       </div>

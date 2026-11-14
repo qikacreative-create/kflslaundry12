@@ -105,7 +105,7 @@ export const DetailTransaksiView: React.FC<DetailTransaksiViewProps> = ({
 
   {/* Baris 2: Est. Selesai */}
   {transaksi.tanggalSelesai && (
-    <div className="flex justify-between items-center text-red-600 font-bold">
+  <div className="flex justify-between items-center text-slate-600">
       <span>Est. Selesai</span>
       <span>{formatDateIndo(transaksi.tanggalSelesai)}</span>
     </div>
@@ -198,16 +198,7 @@ export const DetailTransaksiView: React.FC<DetailTransaksiViewProps> = ({
               <Printer className="w-4 h-4 shrink-0" />
               <span>Lihat Struk</span>
             </button>
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="min-h-[44px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow-xs transition active:scale-98 whitespace-nowrap"
-            >
-              <Share2 className="w-4 h-4 shrink-0" />
-              <span>Share Struk / WA</span>
-            </button>
-          </div>
-
-          {!isArchived && onAmbil && (
+    {!isArchived && onAmbil && (
             <button
               onClick={() => setShowConfirmAmbil(true)}
               className="w-full min-h-[44px] flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition active:scale-98 whitespace-nowrap"
@@ -216,6 +207,8 @@ export const DetailTransaksiView: React.FC<DetailTransaksiViewProps> = ({
               <span>Ambil Cucian</span>
             </button>
           )}
+          </div>
+
         </div>
 
 
@@ -224,14 +217,14 @@ export const DetailTransaksiView: React.FC<DetailTransaksiViewProps> = ({
           <div className="flex gap-2 pt-1">
             <button
               onClick={() => onEdit(transaksi)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 text-xs font-bold transition"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5  text-red-600 hover:bg-red-50 text-xs transition"
             >
               <Edit3 className="w-4 h-4" />
               Edit Transaksi
             </button>
             <button
               onClick={handleDeleteConfirm}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-red-300 text-red-600 hover:bg-red-50 text-xs font-bold transition"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5  text-red-600 hover:bg-red-50 text-xs  transition"
             >
               <Trash2 className="w-4 h-4" />
               Hapus Transaksi
